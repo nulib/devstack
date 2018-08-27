@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+this_file = __FILE__
+this_file = File.readlink(this_file) while File.symlink?(this_file)
+compose_file = File.expand_path('../../docker-compose.yml', this_file)
+
+dependencies = {
+  'avr'   => %w[db elasticsearch fedora redis solr],
+  'arch'  => %w[db elasticsearch fedora minio redis solr],
+  'donut' => %w[cantaloupe db elasticsearch fedora minio redis solr],
+  'glaze' => %w[cantaloupe elasticproxy elasticsearch kibana minio]
+}
+
+subcommand = ARGV.shift
+cmdline = case subcommand
+          when 'init-core'
+            cmd = ARGV.collect { |core| "bin/solr create_core -c #{core}-development -d /solr_configs/#{core}" }.join(' && ')
+            ['docker-compose', '-f', compose_file, 'exec', 'solr', 'bash', '-c', cmd]
+          else
+            services = ARGV.collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
+            ['docker-compose', '-f', compose_file, subcommand] + services
+          end
+
+Kernel.exec(*cmdline)

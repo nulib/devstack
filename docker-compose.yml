@@ -1,0 +1,130 @@
+---
+version: '3.4'
+volumes:
+  fedora:
+  db:
+  minio:
+  solr:
+  es:
+services:
+  cantaloupe:
+    image: nulib/cantaloupe
+    ports:
+    - 8183:8182
+    volumes:
+    - "${HOME}/.nuldata/derivatives:/var/lib/cantaloupe/images"
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - "-f"
+      - http://localhost:8182/iiif/2/
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  db:
+    image: healthcheck/postgres:alpine
+    volumes:
+    - db:/data
+    environment:
+    - PGDATA=/data
+    - POSTGRES_USER=docker
+    - POSTGRES_PASSWORD=d0ck3r
+    ports:
+    - 5433:5432
+  elasticproxy:
+    depends_on:
+    - elasticsearch
+    image: nulib/elasticproxy:latest
+    ports:
+    - 3334:3334
+    environment:
+      UPSTREAM: http://elasticsearch:9200/
+      API_TOKEN_HEADER: X-Api-Token
+      API_TOKEN_SECRET: ab00ffc725da64fa07b20f42ed8bbcf0fda5779aa55c90cedf3a81e09e3a2b14
+      OPENAM_SERVER: https://websso.it.northwestern.edu/amserver/
+      OPENAM_COOKIE: openAMssoToken
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    ports:
+    - 9201:9200
+    volumes:
+    - es:/usr/share/elasticsearch/data
+    environment:
+      discovery.type: single-node
+      http.cors.enabled: "true"
+      http.cors.allow-origin: "*"
+      http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+      http.cors.allow-headers: "X-Requested-With,X-Auth-Token,Content-Type, Content-Length, Authorization"
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - "-f"
+      - http://localhost:9200/
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  fedora:
+    image: nulib/fcrepo4
+    volumes:
+    - fedora:/data
+    ports:
+    - 8984:8080
+  kibana:
+    depends_on:
+    - elasticsearch
+    image: docker.elastic.co/kibana/kibana:6.3.2
+    ports:
+    - 5602:5601
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - "-f"
+      - http://localhost:5601/
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  minio:
+    image: minio/minio
+    volumes:
+      - minio:/data
+    ports:
+      - "9001:9000"
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+    command:
+      - minio
+      - server
+      - /data
+  redis:
+    image: redis:alpine
+    ports:
+    - 6380:6379
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  solr:
+    image: solr:7.2-alpine
+    ports:
+    - 8983:8983
+    volumes:
+    - solr:/opt/solr/server/solr/mycores
+    - "./solr:/solr_configs"
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - "-O"
+      - "/dev/null"
+      - http://localhost:8983/solr/
+      interval: 30s
+      timeout: 5s
+      retries: 3
