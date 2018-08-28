@@ -1,0 +1,28 @@
+---
+avr:
+  - db
+  - elasticsearch
+  - fedora
+  - redis
+  - solr
+arch:
+  - db
+  - elasticsearch
+  - fedora
+  - minio
+  - redis
+  - solr
+donut:
+  - cantaloupe
+  - db
+  - elasticsearch
+  - fedora
+  - minio
+  - redis
+  - solr
+glaze:
+  - cantaloupe
+  - elasticproxy
+  - elasticsearch
+  - kibana
+  - minio

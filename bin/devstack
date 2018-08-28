@@ -1,15 +1,14 @@
 #!/usr/bin/env ruby
 
+require 'pathname'
+require 'yaml'
+
 this_file = __FILE__
 this_file = File.readlink(this_file) while File.symlink?(this_file)
-compose_file = File.expand_path('../../docker-compose.yml', this_file)
+root = Pathname(File.expand_path('../..', this_file))
 
-dependencies = {
-  'avr'   => %w[db elasticsearch fedora redis solr],
-  'arch'  => %w[db elasticsearch fedora minio redis solr],
-  'donut' => %w[cantaloupe db elasticsearch fedora minio redis solr],
-  'glaze' => %w[cantaloupe elasticproxy elasticsearch kibana minio]
-}
+compose_file = root.join('docker-compose.yml').to_s
+dependencies = YAML.load(File.read(root.join('sets.yml')))
 
 subcommand = ARGV.shift
 cmdline = case subcommand
