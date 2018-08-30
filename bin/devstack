@@ -1,39 +1,81 @@
 #!/usr/bin/env ruby
 
 require 'pathname'
+require 'time'
 require 'yaml'
 
-def usage
-  output = %x(docker-compose 2>&1).split(/\nCommands:\n/).last
-  commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/,2) }]
-  commands['update'] = 'Pull the latest devstack command/configs from github'
-  $stderr.puts %{Usage:\n  devstack [COMMAND] [ARGS...]\n\nCommands:}
-  commands.sort.each do |command|
-    $stderr.puts '  %-18s %s' % command
+class DevStack
+  attr_accessor :argv, :version
+
+  def initialize(argv)
+    @argv = argv
+    @version = File.read(root.join('VERSION')).strip
+  end
+
+  def display_usage
+    output = `docker-compose 2>&1`.split(/\nCommands:\n/).last
+    commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
+    commands['update'] = 'Pull the latest devstack command/configs from github'
+    commands['version'] = 'Show the devstack version information'
+    warn %(Usage:\n  devstack [COMMAND] [ARGS...]\n\nCommands:)
+    Hash[commands.sort].each_pair do |command, description|
+      warn format('  %-18s %s', command, description)
+    end
+  end
+
+  def display_version
+    Dir.chdir(root.to_s) do
+      (local_rev, remote_rev) = `git fetch origin && git rev-parse master && git rev-parse origin/master`.strip.split
+      warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
+      return if local_rev == remote_rev
+      remote_version = `git show origin/master:VERSION`.strip
+      warn "\nVersion #{remote_version}, build #{remote_rev[0..7]} available."
+      warn 'Run `devstack update` to upgrade'
+    end
+  end
+
+  def compose_file
+    @compose_file ||= root.join('docker-compose.yml').to_s
+  end
+
+  def dependencies
+    @dependencies ||= YAML.safe_load(File.read(root.join('sets.yml')))
+  end
+
+  def root
+    @root ||= Pathname(File.expand_path('../..', this_file))
+  end
+
+  def this_file
+    if @this_file.nil?
+      @this_file = __FILE__
+      @this_file = File.readlink(@this_file) while File.symlink?(@this_file)
+    end
+    @this_file
+  end
+
+  def exec!
+    dc_args = argv[1..-1].collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
+    cmdline = ['docker-compose', '-f', compose_file, argv.first] + dc_args
+    Kernel.exec(*cmdline)
+  end
+
+  def update!
+    Dir.chdir(root.to_s) { Kernel.exec %w[git pull origin] }
+  end
+
+  def run!
+    case argv.first
+    when nil, 'help', '-h', '--help'
+      display_usage
+    when 'version', '-v', '--version'
+      display_version
+    when 'update'
+      update!
+    else
+      exec!
+    end
   end
 end
 
-this_file = __FILE__
-this_file = File.readlink(this_file) while File.symlink?(this_file)
-root = Pathname(File.expand_path('../..', this_file))
-
-compose_file = root.join('docker-compose.yml').to_s
-dependencies = YAML.load(File.read(root.join('sets.yml')))
-
-subcommand = ARGV.shift
-working_dir = Dir.pwd
-cmdline = case subcommand
-          when nil, 'help' then nil
-          when 'update'
-            working_dir = root.to_s
-            %w[git pull origin]
-          else
-            services = ARGV.collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
-            ['docker-compose', '-f', compose_file, subcommand] + services
-          end
-
-if cmdline.nil?
-  usage
-else
-  Dir.chdir(working_dir) { Kernel.exec(*cmdline) }
-end
+DevStack.new(ARGV).run!
