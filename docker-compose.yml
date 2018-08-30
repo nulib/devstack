@@ -137,9 +137,10 @@ services:
     image: solr:7.2-alpine
     ports:
     - 8983:8983
+    - 9983:9983
     volumes:
     - solr:/opt/solr/server/solr/mycores
-    - "./solr:/solr_configs"
+    command: solr -f -cloud
     healthcheck:
       test:
       - CMD

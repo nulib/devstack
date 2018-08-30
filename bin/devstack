@@ -3,6 +3,16 @@
 require 'pathname'
 require 'yaml'
 
+def usage
+  output = %x(docker-compose 2>&1).split(/\nCommands:\n/).last
+  commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/,2) }]
+  commands['update'] = 'Pull the latest devstack command/configs from github'
+  $stderr.puts %{Usage:\n  devstack [COMMAND] [ARGS...]\n\nCommands:}
+  commands.sort.each do |command|
+    $stderr.puts '  %-18s %s' % command
+  end
+end
+
 this_file = __FILE__
 this_file = File.readlink(this_file) while File.symlink?(this_file)
 root = Pathname(File.expand_path('../..', this_file))
@@ -11,13 +21,19 @@ compose_file = root.join('docker-compose.yml').to_s
 dependencies = YAML.load(File.read(root.join('sets.yml')))
 
 subcommand = ARGV.shift
+working_dir = Dir.pwd
 cmdline = case subcommand
-          when 'init-core'
-            cmd = ARGV.collect { |core| "bin/solr create_core -c #{core}-development -d /solr_configs/#{core}" }.join(' && ')
-            ['docker-compose', '-f', compose_file, 'exec', 'solr', 'bash', '-c', cmd]
+          when nil, 'help' then nil
+          when 'update'
+            working_dir = root.to_s
+            %w[git pull origin]
           else
             services = ARGV.collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
             ['docker-compose', '-f', compose_file, subcommand] + services
           end
 
-Kernel.exec(*cmdline)
+if cmdline.nil?
+  usage
+else
+  Dir.chdir(working_dir) { Kernel.exec(*cmdline) }
+end
