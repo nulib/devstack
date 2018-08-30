@@ -28,6 +28,8 @@ all of the same subcommands, parameters, and arguments, with a few notable enhan
   all running services). `-f` behaves the way it does for the `tail` command.
 * `devstack down [-v]`: Bring down the stack. Adding `-v` will destroy the stack's persistent data volumes as
   well, resulting in a clean slate on the next `up`.
+* `devstack ps`: View the current state of running containers
+* `devstack update`: Upgrade to the latest revision of `devstack`
 
 ### Tips and Tricks
 
