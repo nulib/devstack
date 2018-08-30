@@ -61,7 +61,7 @@ class DevStack
   end
 
   def update!
-    Dir.chdir(root.to_s) { Kernel.exec %w[git pull origin] }
+    Dir.chdir(root.to_s) { Kernel.exec('git', 'pull', 'origin') }
   end
 
   def run!
