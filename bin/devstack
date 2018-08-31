@@ -25,7 +25,7 @@ class DevStack
 
   def display_version
     Dir.chdir(root.to_s) do
-      (local_rev, remote_rev) = `git fetch origin && git rev-parse master && git rev-parse origin/master`.strip.split
+      (local_rev, remote_rev) = `git fetch origin >/dev/null 2>&1 && git rev-parse master && git rev-parse origin/master`.strip.split
       warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
       return if local_rev == remote_rev
       remote_version = `git show origin/master:VERSION`.strip
@@ -61,7 +61,8 @@ class DevStack
   end
 
   def update!
-    Dir.chdir(root.to_s) { Kernel.exec('git', 'pull', 'origin') }
+    Dir.chdir(root.to_s) { `git pull origin` }
+    display_version
   end
 
   def run!
