@@ -61,7 +61,10 @@ class DevStack
   end
 
   def update!
-    Dir.chdir(root.to_s) { `git pull origin` }
+    Dir.chdir(root.to_s) do
+      `git pull origin`
+      `docker-compose -f #{compose_file} pull`
+    end
     display_version
   end
 
