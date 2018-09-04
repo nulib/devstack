@@ -37,6 +37,9 @@ all of the same subcommands, parameters, and arguments, with a few notable enhan
 * Setting the `COMPOSE_PROJECT_NAME` environment variable will change the prefix `docker-compose` uses when
   creating containers and volumes, allowing you to create a temporary stack without interfering with your
   main stack. This can be useful for one-off debugging.
+* It’s a good idea to run `docker system prune` once in a while to get rid of stopped containers, dangling
+  images, and unused networks & volumes. If you run it while the stack is up, it won’t remove your current
+  set of data volumes (because they'll be in use).
 
 ## Known Issues
 
