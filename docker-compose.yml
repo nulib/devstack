@@ -8,11 +8,16 @@ volumes:
   es:
 services:
   cantaloupe:
+    depends_on:
+    - minio
     image: nulib/cantaloupe
     ports:
     - 8183:8182
-    volumes:
-    - "${HOME}/.nuldata/derivatives:/var/lib/cantaloupe/images"
+    environment:
+    - TIFF_BUCKET=dev-pyramids
+    - S3_ENDPOINT=http://minio:9000
+    - AWS_ACCESS_KEY_ID=minio
+    - AWS_SECRET_KEY=minio123
     healthcheck:
       test:
       - CMD
@@ -106,10 +111,8 @@ services:
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
-    command:
-      - minio
-      - server
-      - /data
+    entrypoint: /bin/sh
+    command: -c 'mkdir -p /data/dev-pyramids && minio server /data'
     healthcheck:
       test:
       - CMD
