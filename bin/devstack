@@ -5,11 +5,33 @@ require 'time'
 require 'yaml'
 
 class DevStack
-  attr_accessor :argv, :version
+  attr_accessor :argv, :flags, :services, :test_mode, :version
 
   def initialize(argv)
+    ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
     @argv = argv
     @version = File.read(root.join('VERSION')).strip
+    @config_file = 'docker-compose.yml'
+    @test_mode = false
+    @flags = []
+    @services = []
+    parse_command_line
+    check_test_mode
+  end
+
+  # rubocop:disable Metrics/AbcSize
+  def parse_command_line
+    @flags << argv.shift while argv.first.start_with?('-')
+    @services << argv.pop while argv.length > 1 && !argv.last.start_with?('-')
+    @services = @services.collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
+  end
+  # rubocop:enable Metrics/AbcSize
+
+  def check_test_mode
+    return if (['-t', '--test'] & flags).empty?
+    ENV['COMPOSE_PROJECT_NAME'] += '_test'
+    @config_file = 'docker-compose.test.yml'
+    @test_mode = true
   end
 
   def display_usage
@@ -17,15 +39,17 @@ class DevStack
     commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
     commands['update'] = 'Pull the latest devstack command/configs from github'
     commands['version'] = 'Show the devstack version information'
-    warn %(Usage:\n  devstack [COMMAND] [ARGS...]\n\nCommands:)
+    warn %(Usage:\n  devstack [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
     Hash[commands.sort].each_pair do |command, description|
       warn format('  %-18s %s', command, description)
     end
   end
 
+  # rubocop:disable Metrics/AbcSize
   def display_version
     Dir.chdir(root.to_s) do
-      (local_rev, remote_rev) = `git fetch origin >/dev/null 2>&1 && git rev-parse master && git rev-parse origin/master`.strip.split
+      cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse master', 'git rev-parse origin/master'].join(' && ')
+      (local_rev, remote_rev) = `#{cmds}`.strip.split
       warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
       return if local_rev == remote_rev
       remote_version = `git show origin/master:VERSION`.strip
@@ -33,9 +57,10 @@ class DevStack
       warn 'Run `devstack update` to upgrade'
     end
   end
+  # rubocop:enable Metrics/AbcSize
 
   def compose_file
-    @compose_file ||= root.join('docker-compose.yml').to_s
+    @compose_file ||= root.join(@config_file).to_s
   end
 
   def dependencies
@@ -54,10 +79,29 @@ class DevStack
     @this_file
   end
 
+  def cmdline
+    (['docker-compose', '-f', compose_file] + argv + services).tap do |result|
+      result << '-v' if test_mode && (['down', '-v'] & argv == ['down'])
+    end
+  end
+
+  def trap_cmd
+    return [] unless ['up', '-d'] & argv == ['up']
+    ['docker-compose', '-f', compose_file, 'down'].tap do |result|
+      result << '-v' if test_mode
+    end
+  end
+
   def exec!
-    dc_args = argv[1..-1].collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
-    cmdline = ['docker-compose', '-f', compose_file, argv.first] + dc_args
-    Kernel.exec(*cmdline)
+    warn cmdline.inspect if flags.include?('-d')
+    begin
+      Kernel.system(*cmdline)
+    rescue Interrupt # rubocop:disable Lint/HandleExceptions
+      # Let it go
+    ensure
+      final_cmd = trap_cmd
+      Kernel.system(*final_cmd) unless final_cmd.empty?
+    end
   end
 
   def update!

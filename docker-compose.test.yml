@@ -1,18 +1,18 @@
 ---
 version: '3.4'
 volumes:
-  fedora:
-  db:
-  minio:
-  solr:
-  es:
+  fedora_test:
+  db_test:
+  minio_test:
+  solr_test:
+  es_test:
 services:
   cantaloupe:
     depends_on:
     - minio
     image: nulib/cantaloupe
     ports:
-    - 8183:8182
+    - 8184:8182
     environment:
     - TIFF_BUCKET=dev-pyramids
     - S3_ENDPOINT=http://minio:9000
@@ -30,19 +30,19 @@ services:
   db:
     image: healthcheck/postgres:alpine
     volumes:
-    - db:/data
+    - db_test:/data
     environment:
     - PGDATA=/data
     - POSTGRES_USER=docker
     - POSTGRES_PASSWORD=d0ck3r
     ports:
-    - 5433:5432
+    - 5434:5432
   elasticproxy:
     depends_on:
     - elasticsearch
     image: nulib/elasticproxy:latest
     ports:
-    - 3334:3334
+    - 3335:3334
     environment:
       UPSTREAM: http://elasticsearch:9200/
       API_TOKEN_HEADER: X-Api-Token
@@ -63,9 +63,9 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
     ports:
-    - 9201:9200
+    - 9202:9200
     volumes:
-    - es:/usr/share/elasticsearch/data
+    - es_test:/usr/share/elasticsearch/data
     environment:
       discovery.type: single-node
       http.cors.enabled: "true"
@@ -84,15 +84,15 @@ services:
   fedora:
     image: nulib/fcrepo4
     volumes:
-    - fedora:/data
+    - fedora_test:/data
     ports:
-    - 8984:8080
+    - 8986:8080
   kibana:
     depends_on:
     - elasticsearch
     image: docker.elastic.co/kibana/kibana:6.3.2
     ports:
-    - 5602:5601
+    - 5603:5601
     healthcheck:
       test:
       - CMD
@@ -105,9 +105,9 @@ services:
   minio:
     image: minio/minio
     volumes:
-      - minio:/data
+      - minio_test:/data
     ports:
-      - 9001:9000
+      - 9002:9000
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
@@ -127,7 +127,7 @@ services:
   redis:
     image: redis:alpine
     ports:
-    - 6380:6379
+    - 6381:6379
     healthcheck:
       test:
       - CMD
@@ -139,10 +139,10 @@ services:
   solr:
     image: solr:7.2-alpine
     ports:
-    - 8983:8983
-    - 9983:9983
+    - 8985:8983
+    - 9985:9983
     volumes:
-    - solr:/opt/solr/server/solr
+    - solr_test:/opt/solr/server/solr
     command: solr -f -cloud
     healthcheck:
       test:
