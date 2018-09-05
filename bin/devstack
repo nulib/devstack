@@ -5,12 +5,11 @@ require 'time'
 require 'yaml'
 
 class DevStack
-  attr_accessor :argv, :flags, :services, :test_mode, :version
+  attr_accessor :argv, :flags, :services, :test_mode
 
   def initialize(argv)
     ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
     @argv = argv
-    @version = File.read(root.join('VERSION')).strip
     @config_file = 'docker-compose.yml'
     @test_mode = false
     @flags = []
@@ -45,6 +44,10 @@ class DevStack
     end
   end
 
+  def version
+    File.read(root.join('VERSION')).strip
+  end
+  
   # rubocop:disable Metrics/AbcSize
   def display_version
     Dir.chdir(root.to_s) do
