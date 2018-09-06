@@ -71,7 +71,7 @@ class DevStack
   end
 
   def compose_file
-    @compose_file ||= root.join(@config_file).to_s
+    root.join(@config_file).to_s
   end
 
   def dependencies
