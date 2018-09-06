@@ -3,6 +3,7 @@
 require 'pathname'
 require 'time'
 require 'ostruct'
+require 'pry'
 require 'yaml'
 
 class DevStack
@@ -31,7 +32,7 @@ class DevStack
 
   def parse_command_line
     argv = context.argv
-    context.flags << argv.shift while argv.first.start_with?('-')
+    context.flags << argv.shift while argv.first.to_s.start_with?('-')
     interpret_arg(argv.pop) while argv.length > 1 && !argv.last.start_with?('-')
   end
 
@@ -47,7 +48,7 @@ class DevStack
     commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
     commands['update'] = 'Pull the latest devstack command/configs from github'
     commands['version'] = 'Show the devstack version information'
-    warn %(Usage:\n  devstack [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
+    warn %(Usage:\n  devstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
     Hash[commands.sort].each_pair do |command, description|
       warn format('  %-18s %s', command, description)
     end
@@ -123,9 +124,12 @@ class DevStack
   end
 
   def run!
-    case context.argv.first
-    when nil, 'help', '-h', '--help'
+    if (context.flags & ['-h', '--help']).any? || context.argv.empty? || (context.argv == ['help'] && context.argz.empty?)
       display_usage
+      exit 1
+    end
+
+    case context.argv.first
     when 'version', '-v', '--version'
       display_version
     when 'update'
