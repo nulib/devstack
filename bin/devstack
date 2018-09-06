@@ -2,35 +2,44 @@
 
 require 'pathname'
 require 'time'
+require 'ostruct'
 require 'yaml'
 
 class DevStack
-  attr_accessor :argv, :flags, :services, :test_mode
+  attr_accessor :context
 
   def initialize(argv)
     ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
-    @argv = argv
     @config_file = 'docker-compose.yml'
-    @test_mode = false
-    @flags = []
-    @services = []
+    @context = OpenStruct.new argv: argv, test_mode: false, flags: [], services: [], argz: []
     parse_command_line
     check_test_mode
   end
 
-  # rubocop:disable Metrics/AbcSize
-  def parse_command_line
-    @flags << argv.shift while argv.first.start_with?('-')
-    @services << argv.pop while argv.length > 1 && !argv.last.start_with?('-')
-    @services = @services.collect { |arg| dependencies[arg] || arg }.flatten.sort.uniq
+  def known_services
+    @known_services ||= YAML.safe_load(File.read(compose_file))['services'].keys
   end
-  # rubocop:enable Metrics/AbcSize
+
+  def interpret_arg(arg)
+    expanded = known_services & (dependencies[arg] || [arg])
+    if expanded.empty?
+      context.argz << arg
+    else
+      context.services += (expanded - context.services)
+    end
+  end
+
+  def parse_command_line
+    argv = context.argv
+    context.flags << argv.shift while argv.first.start_with?('-')
+    interpret_arg(argv.pop) while argv.length > 1 && !argv.last.start_with?('-')
+  end
 
   def check_test_mode
-    return if (['-t', '--test'] & flags).empty?
+    return if (['-t', '--test'] & context.flags.to_a).empty?
     ENV['COMPOSE_PROJECT_NAME'] += '_test'
     @config_file = 'docker-compose.test.yml'
-    @test_mode = true
+    context.test_mode = true
   end
 
   def display_usage
@@ -47,8 +56,7 @@ class DevStack
   def version
     File.read(root.join('VERSION')).strip
   end
-  
-  # rubocop:disable Metrics/AbcSize
+
   def display_version
     Dir.chdir(root.to_s) do
       cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse master', 'git rev-parse origin/master'].join(' && ')
@@ -60,7 +68,6 @@ class DevStack
       warn 'Run `devstack update` to upgrade'
     end
   end
-  # rubocop:enable Metrics/AbcSize
 
   def compose_file
     @compose_file ||= root.join(@config_file).to_s
@@ -83,20 +90,20 @@ class DevStack
   end
 
   def cmdline
-    (['docker-compose', '-f', compose_file] + argv + services).tap do |result|
-      result << '-v' if test_mode && (['down', '-v'] & argv == ['down'])
+    (['docker-compose', '-f', compose_file] + context.argv + context.services + context.argz).tap do |result|
+      result << '-v' if context.test_mode && (['down', '-v'] & context.argv == ['down'])
     end
   end
 
   def trap_cmd
-    return [] unless ['up', '-d'] & argv == ['up']
+    return [] unless ['up', '-d'] & context.argv == ['up']
     ['docker-compose', '-f', compose_file, 'down'].tap do |result|
-      result << '-v' if test_mode
+      result << '-v' if context.test_mode
     end
   end
 
   def exec!
-    warn cmdline.inspect if flags.include?('-d')
+    warn cmdline.inspect if context.flags.include?('-d')
     begin
       Kernel.system(*cmdline)
     rescue Interrupt # rubocop:disable Lint/HandleExceptions
@@ -116,7 +123,7 @@ class DevStack
   end
 
   def run!
-    case argv.first
+    case context.argv.first
     when nil, 'help', '-h', '--help'
       display_usage
     when 'version', '-v', '--version'

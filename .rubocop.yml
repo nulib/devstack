@@ -1,3 +1,9 @@
+Metrics/AbcSize:
+  Max: 24
+  
+Metrics/ClassLength:
+  Enabled: false
+
 Metrics/LineLength:
   Max: 120
 
