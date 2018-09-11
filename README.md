@@ -23,6 +23,11 @@ all of the same subcommands, parameters, and arguments, with a few notable enhan
 
 ### Cheat Sheet
 
+* `devstack -t [rest-of-command]` will run `devstack` in test mode. That means:
+  * All services run on test ports instead of dev ports (e.g., `solr` on `8985` instead of `8983`)
+  * The `COMPOSE_PROJECT_NAME` will have `_test` appended (e.g., the default container names will be 
+    `devstack_test_*` instead of `devstack_*`)
+  * The stack will clean itself up (delete all volumes and persistent data) when it spins down.
 * `devstack up [-d] [SERVICE|APPLICATION...]`: Bring up all requested services (default: all services).
   `-d` will run everything in the background.
 * `devstack logs [-f] [SERVICE|APPLICATION...]`: Show the container logs for the specified services (default:
