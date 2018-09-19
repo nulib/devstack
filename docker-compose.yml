@@ -11,6 +11,16 @@ services:
     depends_on:
     - minio
     image: nulib/cantaloupe
+    read_only: true
+    volumes:
+    - type: volume
+      target: /etc
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
     - 8183:8182
     environment:
@@ -29,8 +39,17 @@ services:
       retries: 3
   db:
     image: healthcheck/postgres:alpine
+    read_only: true
     volumes:
-    - db:/data
+    - type: volume
+      source: db
+      target: /data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     environment:
     - PGDATA=/data
     - POSTGRES_USER=docker
@@ -41,6 +60,16 @@ services:
     depends_on:
     - elasticsearch
     image: nulib/elasticproxy:latest
+    read_only: true
+    volumes:
+    - type: volume
+      target: /home/node
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
     - 3334:3334
     environment:
@@ -62,10 +91,23 @@ services:
       retries: 3
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    read_only: true
+    volumes:
+    - type: volume
+      source: es
+      target: /usr/share/elasticsearch/data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /usr/share/elasticsearch/config
+    - type: volume
+      target: /usr/share/elasticsearch/logs
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
     - 9201:9200
-    volumes:
-    - es:/usr/share/elasticsearch/data
     environment:
       discovery.type: single-node
       http.cors.enabled: "true"
@@ -83,8 +125,19 @@ services:
       retries: 3
   fedora:
     image: nulib/fcrepo4
+    read_only: true
     volumes:
-    - fedora:/data
+    - type: volume
+      source: fedora
+      target: /data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/lib/jetty
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
     - 8984:8080
   kibana:
@@ -104,8 +157,19 @@ services:
       retries: 3
   minio:
     image: minio/minio
+    read_only: true
     volumes:
-      - minio:/data
+    - type: volume
+      source: minio
+      target: /data
+    - type: volume
+      target: /root/.minio
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
       - 9001:9000
     environment:
@@ -126,6 +190,14 @@ services:
       retries: 3
   redis:
     image: redis:alpine
+    read_only: true
+    volumes:
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
     - 6380:6379
     healthcheck:
@@ -138,11 +210,22 @@ services:
       retries: 3
   solr:
     image: solr:7.2-alpine
+    read_only: true
+    volumes:
+    - type: volume
+      source: solr
+      target: /opt/solr/server/solr
+    - type: volume
+      target: /opt/solr/server
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
     ports:
     - 8983:8983
     - 9983:9983
-    volumes:
-    - solr:/opt/solr/server/solr
     command: solr -f -cloud
     healthcheck:
       test:
