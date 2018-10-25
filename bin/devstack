@@ -3,7 +3,6 @@
 require 'pathname'
 require 'time'
 require 'ostruct'
-require 'pry'
 require 'yaml'
 
 class DevStack
