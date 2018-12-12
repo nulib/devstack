@@ -7,33 +7,31 @@ volumes:
   solr:
   es:
 services:
-  cantaloupe:
+  iiif:
     depends_on:
     - minio
-    image: nulib/cantaloupe
+    image: nulib/iiif-express
     read_only: true
     volumes:
     - type: volume
-      target: /etc
-    - type: volume
       target: /tmp
-    - type: volume
-      target: /var/log
     - type: volume
       target: /var/run
     ports:
-    - 8183:8182
+    - 8183:3000
     environment:
     - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=http://minio:9000
+    - S3_ENDPOINT=http://minio:9000/
     - AWS_ACCESS_KEY_ID=minio
-    - AWS_SECRET_KEY=minio123
+    - AWS_SECRET_ACCESS_KEY=minio123
     healthcheck:
       test:
       - CMD
-      - curl
-      - "-f"
-      - http://localhost:8182/iiif/2/
+      - wget
+      - "--quiet"
+      - "--tries=1"
+      - "--spider"
+      - http://localhost:3000/iiif/2/
       interval: 30s
       timeout: 5s
       retries: 3

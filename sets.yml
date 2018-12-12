@@ -13,7 +13,7 @@ arch:
   - redis
   - solr
 donut:
-  - cantaloupe
+  - iiif
   - db
   - elasticsearch
   - fedora
@@ -21,7 +21,7 @@ donut:
   - redis
   - solr
 glaze:
-  - cantaloupe
+  - iiif
   - elasticproxy
   - elasticsearch
   - kibana
