@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 3
   db:
-    image: healthcheck/postgres:alpine
+    image: postgres:10-alpine
     read_only: true
     volumes:
     - type: volume
@@ -54,6 +54,12 @@ services:
     - POSTGRES_PASSWORD=d0ck3r
     ports:
     - 5433:5432
+    healthcheck:
+      test: "CMD echo 'SELECT 1' | PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker
+  --dbname docker --quiet --no-align --tuples-only"
+      interval: 30s
+      timeout: 5s
+      retries: 3
   elasticproxy:
     depends_on:
     - elasticsearch

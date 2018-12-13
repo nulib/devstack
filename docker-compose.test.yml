@@ -7,38 +7,36 @@ volumes:
   solr_test:
   es_test:
 services:
-  cantaloupe:
+  iiif:
     depends_on:
     - minio
-    image: nulib/cantaloupe
+    image: nulib/iiif-express
     read_only: true
     volumes:
     - type: volume
-      target: /etc
-    - type: volume
       target: /tmp
-    - type: volume
-      target: /var/log
     - type: volume
       target: /var/run
     ports:
-    - 8184:8182
+    - 8184:3000
     environment:
     - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=http://minio:9000
+    - S3_ENDPOINT=http://minio:9000/
     - AWS_ACCESS_KEY_ID=minio
-    - AWS_SECRET_KEY=minio123
+    - AWS_SECRET_ACCESS_KEY=minio123
     healthcheck:
       test:
       - CMD
-      - curl
-      - "-f"
-      - http://localhost:8182/iiif/2/
+      - wget
+      - "--quiet"
+      - "--tries=1"
+      - "--spider"
+      - http://localhost:3000/iiif/2/
       interval: 30s
       timeout: 5s
       retries: 3
   db:
-    image: healthcheck/postgres:alpine
+    image: postgres:10-alpine
     read_only: true
     volumes:
     - type: volume
@@ -56,6 +54,12 @@ services:
     - POSTGRES_PASSWORD=d0ck3r
     ports:
     - 5434:5432
+    healthcheck:
+      test: "CMD echo 'SELECT 1' | PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker
+  --dbname docker --quiet --no-align --tuples-only"
+      interval: 30s
+      timeout: 5s
+      retries: 3
   elasticproxy:
     depends_on:
     - elasticsearch
