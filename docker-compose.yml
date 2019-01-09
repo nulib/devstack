@@ -128,7 +128,7 @@ services:
       timeout: 5s
       retries: 3
   fedora:
-    image: nulib/fcrepo4
+    image: nulib/fcrepo4:4.7.5
     read_only: true
     volumes:
     - type: volume
