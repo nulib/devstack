@@ -13,16 +13,21 @@ arch:
   - redis
   - solr
 donut:
-  - iiif
   - db
   - elasticsearch
   - fedora
+  - iiif
   - minio
   - redis
   - solr
 glaze:
-  - iiif
   - elasticproxy
   - elasticsearch
+  - iiif
   - kibana
   - minio
+meadow:
+  - db
+  - elasticsearch
+  - iiif
+  - redis
