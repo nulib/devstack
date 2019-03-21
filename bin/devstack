@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'fileutils'
 require 'pathname'
 require 'time'
 require 'ostruct'
@@ -114,10 +115,24 @@ class DevStack
     end
   end
 
+  def link!
+    Dir.chdir(root.to_s) do
+      Dir['bin/*'].each do |bin|
+        source = File.expand_path(bin)
+        target = "/usr/local/bin/#{File.basename(bin)}"
+        unless File.exist?(target)
+          warn "Linking #{source} -> #{target}"
+          FileUtils.ln_s source, target 
+        end
+      end
+    end
+  end
+
   def update!
     Dir.chdir(root.to_s) do
       `git pull origin`
       `docker-compose -f #{compose_file} pull`
+      link!
     end
     display_version
   end
@@ -131,6 +146,8 @@ class DevStack
     case context.argv.first
     when 'version', '-v', '--version'
       display_version
+    when 'link'
+      link!
     when 'update'
       update!
     else

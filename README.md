@@ -7,7 +7,7 @@ A dockerized development stack for the Northwestern University Library Repositor
 $ git clone git@github.com:nulib/devstack.git
 $ cd devstack
 # the next command might require sudo depending on your homebrew setup
-$ ln -s $(pwd)/bin/devstack /usr/local/bin/devstack
+$ bin/devstack link
 ```
 
 ## Use
