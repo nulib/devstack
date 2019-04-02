@@ -159,6 +159,10 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  sqs:
+    image: s12v/elasticmq
+    ports:
+      - 9325:9324
   minio:
     image: minio/minio
     read_only: true

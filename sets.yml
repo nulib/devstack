@@ -29,5 +29,5 @@ glaze:
 meadow:
   - db
   - elasticsearch
-  - iiif
-  - redis
+  - minio
+  - sqs
