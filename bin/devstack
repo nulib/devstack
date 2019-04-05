@@ -1,7 +1,9 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require 'json'
 require 'pathname'
+require 'socket'
 require 'time'
 require 'ostruct'
 require 'yaml'
@@ -46,6 +48,7 @@ class DevStack
   def display_usage
     output = `docker-compose 2>&1`.split(/\nCommands:\n/).last
     commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
+    commands['ports'] = 'Get a JSON report of running services and their ports'
     commands['update'] = 'Pull the latest devstack command/configs from github'
     commands['version'] = 'Show the devstack version information'
     warn %(Usage:\n  devstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
@@ -128,6 +131,18 @@ class DevStack
     end
   end
 
+  def portmap!
+    label = ENV['COMPOSE_PROJECT_NAME']
+    request = %{/containers/json?filters={"label":["com.docker.compose.project=#{label}"]}}
+    status, headers, containers = docker_sock(request)
+    result = containers.inject({}) do |r, c| 
+      name = c['Names'].find { |n| n.include?(label) }.gsub(%r{^/#{label}_(.+)_\d+$},'\1')
+      r[name] = c['Ports'].inject({}) { |h, p| h[p['PrivatePort']] = p['PublicPort']; h }.compact 
+      r
+    end
+    puts result.to_json
+  end
+
   def update!
     Dir.chdir(root.to_s) do
       `git pull origin`
@@ -148,10 +163,29 @@ class DevStack
       display_version
     when 'link'
       link!
+    when 'portmap'
+      portmap!
     when 'update'
       update!
     else
       exec!
+    end
+  end
+
+  private
+
+  def docker_sock(request)
+    UNIXSocket.open('/var/run/docker.sock') do |socket|
+      socket.send("GET #{request} HTTP/1.0\r\n\r\n", 0)
+      headers, body = socket.read.split(/\r\n\r\n/,2)
+      headers = headers.lines.collect(&:chomp)
+      status = headers.shift
+      headers = headers.inject({}) do |acc, head| 
+        key, value = head.split(/\s*:\s*/, 2)
+        acc[key.downcase] = value
+        acc
+      end
+      [status, headers, JSON.parse(body)]
     end
   end
 end
