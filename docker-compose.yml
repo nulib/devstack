@@ -110,6 +110,7 @@ services:
       target: /var/log
     - type: volume
       target: /var/run
+    - ./extras/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
     ports:
     - 9201:9200
     environment:

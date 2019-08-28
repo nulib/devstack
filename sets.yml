@@ -28,7 +28,5 @@ glaze:
   - minio
 meadow:
   - db
-  - elasticsearch
   - minio
   - redis
-  - sqs
