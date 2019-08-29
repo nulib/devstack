@@ -245,3 +245,12 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  transfer:
+    image: nulib/devstack-transfer
+    read_only: true
+    volumes:
+      - fedora_test:/volumes/fedora
+      - db_test:/volumes/db
+      - minio_test:/volumes/minio
+      - solr_test:/volumes/solr
+      - es_test:/volumes/es

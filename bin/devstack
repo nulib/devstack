@@ -23,6 +23,10 @@ class DevStack
     @known_services ||= YAML.safe_load(File.read(compose_file))['services'].keys
   end
 
+  def volumes
+    @volumes ||= YAML.safe_load(File.read(compose_file))['volumes'].keys
+  end
+
   def interpret_arg(arg)
     expanded = known_services & (dependencies[arg] || [arg])
     if expanded.empty?
@@ -152,6 +156,18 @@ class DevStack
     display_version
   end
 
+  def export!
+    cmd = %{docker-compose -f #{compose_file} run -v #{Dir.pwd}:/external transfer export #{volumes.join(" ")}}
+    system(cmd)
+  end
+
+  def import!
+    input_file = context.argz.first
+    cmd = %{docker-compose -f #{compose_file} run -v #{File.expand_path(input_file)}:/external/#{File.basename(input_file)} transfer import #{input_file}}
+    puts cmd
+    system(cmd)
+  end
+
   def run!
     if (context.flags & ['-h', '--help']).any? || context.argv.empty? || (context.argv == ['help'] && context.argz.empty?)
       display_usage
@@ -161,6 +177,10 @@ class DevStack
     case context.argv.first
     when 'version', '-v', '--version'
       display_version
+    when 'export'
+      export!
+    when 'import'
+      import!
     when 'link'
       link!
     when 'portmap'
