@@ -144,6 +144,20 @@ services:
       target: /var/run
     ports:
     - 8986:8080
+  goaws:
+    image: nulib/goaws
+    ports:
+    - 4102:4100
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -O
+      - "-"
+      - http://localhost:4100/?Action=ListQueues
+      interval: 30s
+      timeout: 5s
+      retries: 3
   kibana:
     depends_on:
     - elasticsearch

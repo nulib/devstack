@@ -28,5 +28,6 @@ glaze:
   - minio
 meadow:
   - db
+  - goaws
   - minio
   - redis
