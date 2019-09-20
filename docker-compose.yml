@@ -3,9 +3,10 @@ version: '3.4'
 volumes:
   fedora:
   db:
+  es:
+  goaws:
   minio:
   solr:
-  es:
 services:
   iiif:
     depends_on:
@@ -151,6 +152,8 @@ services:
     image: nulib/goaws
     ports:
     - 4101:4100
+    volumes:
+    - goaws:/data
     healthcheck:
       test:
       - CMD
@@ -161,6 +164,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    command: --persist /data/goaws.yaml
   kibana:
     depends_on:
     - elasticsearch
