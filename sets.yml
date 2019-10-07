@@ -30,4 +30,3 @@ meadow:
   - db
   - goaws
   - minio
-  - redis
