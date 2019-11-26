@@ -217,6 +217,19 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+    - 5051:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
+      PGADMIN_DEFAULT_PASSWORD: devstack
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+    - $HOME/.pgadmin:/var/lib/pgadmin
+    - $HOME/.ssh:/root/.ssh
+    - ./extras/pgadmin4/servers.json:/pgadmin4/servers.json
+    - ./extras/pgadmin4/pgpass:/pgpass
   redis:
     image: redis:alpine
     read_only: true
