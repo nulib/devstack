@@ -8,11 +8,11 @@ require 'time'
 require 'ostruct'
 require 'yaml'
 
-class DevStack
+class GBLStack
   attr_accessor :context
 
   def initialize(argv)
-    ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
+    ENV['COMPOSE_PROJECT_NAME'] ||= 'gblstack'
     @config_file = 'docker-compose.yml'
     @context = OpenStruct.new argv: argv, test_mode: false, flags: [], services: [], argz: []
     parse_command_line
@@ -53,9 +53,9 @@ class DevStack
     output = `docker-compose 2>&1`.split(/\nCommands:\n/).last
     commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
     commands['ports'] = 'Get a JSON report of running services and their ports'
-    commands['update'] = 'Pull the latest devstack command/configs from github'
-    commands['version'] = 'Show the devstack version information'
-    warn %(Usage:\n  devstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
+    commands['update'] = 'Pull the latest gblstack command/configs from github'
+    commands['version'] = 'Show the gblstack version information'
+    warn %(Usage:\n  gblstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
     Hash[commands.sort].each_pair do |command, description|
       warn format('  %-18s %s', command, description)
     end
@@ -69,11 +69,11 @@ class DevStack
     Dir.chdir(root.to_s) do
       cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse master', 'git rev-parse origin/master'].join(' && ')
       (local_rev, remote_rev) = `#{cmds}`.strip.split
-      warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
+      warn "gblstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
       return if local_rev == remote_rev
       remote_version = `git show origin/master:VERSION`.strip
       warn "\nVersion #{remote_version}, build #{remote_rev[0..7]} available."
-      warn 'Run `devstack update` to upgrade'
+      warn 'Run `gblstack update` to upgrade'
     end
   end
 
@@ -210,4 +210,4 @@ class DevStack
   end
 end
 
-DevStack.new(ARGV).run!
+GBLStack.new(ARGV).run!
