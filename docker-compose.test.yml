@@ -1,41 +1,9 @@
 ---
 version: '3.4'
 volumes:
-  fedora_test:
   db_test:
-  es_test:
-  goaws_test:
-  minio_test:
   solr_test:
 services:
-  iiif:
-    depends_on:
-    - minio
-    image: nulib/iiif-express
-    read_only: true
-    volumes:
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/run
-    ports:
-    - 8184:3000
-    environment:
-    - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=http://minio:9000/
-    - AWS_ACCESS_KEY_ID=minio
-    - AWS_SECRET_ACCESS_KEY=minio123
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:3000/iiif/2/
-      interval: 30s
-      timeout: 5s
-      retries: 3
   db:
     image: postgres:10-alpine
     read_only: true
@@ -61,192 +29,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  elasticproxy:
-    depends_on:
-    - elasticsearch
-    image: nulib/elasticproxy:latest
-    read_only: true
-    volumes:
-    - type: volume
-      target: /home/node
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
-    ports:
-    - 3335:3334
-    environment:
-      UPSTREAM: http://elasticsearch:9200/
-      API_TOKEN_HEADER: X-Api-Token
-      API_TOKEN_SECRET: ab00ffc725da64fa07b20f42ed8bbcf0fda5779aa55c90cedf3a81e09e3a2b14
-      OPENAM_SERVER: https://websso.it.northwestern.edu/amserver/
-      OPENAM_COOKIE: openAMssoToken
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:3334/auth/whoami
-      interval: 30s
-      timeout: 5s
-      retries: 3
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
-    read_only: true
-    volumes:
-    - type: volume
-      source: es_test
-      target: /usr/share/elasticsearch/data
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /usr/share/elasticsearch/config
-    - type: volume
-      target: /usr/share/elasticsearch/logs
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
-    ports:
-    - 9202:9200
-    environment:
-      discovery.type: single-node
-      http.cors.enabled: "true"
-      http.cors.allow-origin: "*"
-      http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
-      http.cors.allow-headers: "X-Requested-With,X-Auth-Token,Content-Type, Content-Length, Authorization"
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - "-f"
-      - http://localhost:9200/
-      interval: 30s
-      timeout: 5s
-      retries: 3
-  fedora:
-    image: samvera/fcrepo4:4.7.5
-    read_only: true
-    volumes:
-    - type: volume
-      source: fedora_test
-      target: /data
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/lib/jetty
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
-    ports:
-    - 8986:8080
-  goaws:
-    image: nulib/goaws
-    ports:
-    - 4102:4100
-    volumes:
-    - goaws_test:/data
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - -O
-      - "-"
-      - http://localhost:4100/?Action=ListQueues
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    command: --persist /data/goaws.yaml
-  kibana:
-    depends_on:
-    - elasticsearch
-    image: docker.elastic.co/kibana/kibana:6.3.2
-    ports:
-    - 5603:5601
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - "-f"
-      - http://localhost:5601/
-      interval: 30s
-      timeout: 5s
-      retries: 3
-  sqs:
-    image: s12v/elasticmq
-    ports:
-      - 9326:9324
-  minio:
-    image: minio/minio
-    read_only: true
-    volumes:
-    - type: volume
-      source: minio_test
-      target: /data
-    - type: volume
-      target: /root/.minio
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
-    ports:
-      - 9002:9000
-    environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
-    entrypoint: /bin/sh
-    command: -c 'mkdir -p /data/dev-pyramids && minio server /data'
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:9000/minio/health/live
-      interval: 30s
-      timeout: 5s
-      retries: 3
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-    - 5052:80
-    environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
-      PGADMIN_DEFAULT_PASSWORD: devstack
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    volumes:
-    - $HOME/.pgadmin:/var/lib/pgadmin
-    - $HOME/.ssh:/root/.ssh
-    - ./extras/pgadmin4/servers.json:/pgadmin4/servers.json
-    - ./extras/pgadmin4/pgpass:/pgpass
-  redis:
-    image: redis:alpine
-    read_only: true
-    volumes:
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
-    ports:
-    - 6381:6379
-    healthcheck:
-      test:
-      - CMD
-      - redis-cli
-      - ping
-      interval: 30s
-      timeout: 5s
-      retries: 3
   solr:
     image: solr:7.2-alpine
     read_only: true
@@ -262,10 +44,12 @@ services:
       target: /var/log
     - type: volume
       target: /var/run
+    - type: bind
+      source: $PWD/solr
+      target: /opt/solr/server/solr/configsets/_default
     ports:
     - 8985:8983
-    - 9985:9983
-    command: solr -f -cloud
+    command: solr-precreate blacklight-core
     healthcheck:
       test:
       - CMD
@@ -276,12 +60,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  transfer:
-    image: nulib/devstack-transfer
-    read_only: true
-    volumes:
-      - fedora_test:/volumes/fedora
-      - db_test:/volumes/db
-      - minio_test:/volumes/minio
-      - solr_test:/volumes/solr
-      - es_test:/volumes/es

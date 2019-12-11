@@ -1,9 +1,0 @@
-db:5432:postgres:docker:d0ck3r
-db:5432:arch_dev:docker:d0ck3r
-db:5432:avr_dev:docker:d0ck3r
-db:5432:donut_dev:docker:d0ck3r
-db:5432:meadow_dev:docker:d0ck3r
-db:5432:arch_test:docker:d0ck3r
-db:5432:avr_test:docker:d0ck3r
-db:5432:donut_test:docker:d0ck3r
-db:5432:meadow_test:docker:d0ck3r
