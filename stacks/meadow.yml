@@ -1,0 +1,7 @@
+---
+db:
+  template: services/db.yml
+goaws:
+  template: services/goaws.yml
+minio:
+  template: services/minio.yml

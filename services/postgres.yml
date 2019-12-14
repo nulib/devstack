@@ -1,0 +1,30 @@
+variables:
+  username: docker
+  password: d0ck3r
+  version: 10
+volumes:
+  data:
+service_definition:
+  image: postgres:<%= version %>-alpine
+  read_only: true
+  volumes:
+    - type: volume
+      source: <%= volume('data') %>
+      target: /data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
+  environment:
+    - PGDATA=/data
+    - POSTGRES_USER=<%= username %>
+    - POSTGRES_PASSWORD=<%= password %>
+  ports:
+    - 5433:5432
+  healthcheck:
+    test: "CMD echo 'SELECT 1' | PGPASSWORD=<%= password %> psql --host 127.0.0.1 --username <%= username %> --dbname <%= username %> --quiet --no-align --tuples-only"
+    interval: 30s
+    timeout: 5s
+    retries: 3

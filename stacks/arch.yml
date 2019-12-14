@@ -1,0 +1,13 @@
+---
+db:
+  template: services/db.yml
+elasticsearch:
+  template: services/elasticsearch.yml
+fedora:
+  template: services/fedora.yml
+minio:
+  template: services/minio.yml
+redis:
+  template: services/redis.yml
+solr:
+  template: services/solr.yml

@@ -1,0 +1,15 @@
+variables:
+  version: 6.3.2
+service_definition:
+  image: docker.elastic.co/kibana/kibana:<%= version %>
+  ports:
+    - <%= offset_port(5601) %>:5601
+  healthcheck:
+    test:
+      - CMD
+      - curl
+      - "-f"
+      - http://localhost:5601/
+    interval: 30s
+    timeout: 5s
+    retries: 3

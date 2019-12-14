@@ -1,0 +1,21 @@
+variables:
+  version: 4.7.5
+volumes:
+  data:
+service_definition:
+  image: samvera/fcrepo4:<%= version %>
+  read_only: true
+  volumes:
+    - type: volume
+      source: <%= volume('data') %>
+      target: /data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/lib/jetty
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
+  ports:
+    - <%= offset_port(8985) %>:8080

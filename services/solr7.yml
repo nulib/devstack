@@ -1,0 +1,33 @@
+variables:
+  version: 7.2
+volumes:
+  data:
+service_definition:
+  image: solr:<%= version %>-alpine
+  read_only: true
+  volumes:
+    - type: volume
+      source: <%= volume('data') %>
+      target: /opt/solr/server/solr
+    - type: volume
+      target: /opt/solr/server
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
+  ports:
+    - <%= offset_port(9983) %>:9983
+    - <%= offset_port(8983) %>:8983
+  command: solr -f -cloud
+  healthcheck:
+    test:
+      - CMD
+      - wget
+      - "-O"
+      - "/dev/null"
+      - http://localhost:8983/solr/
+    interval: 30s
+    timeout: 5s
+    retries: 3

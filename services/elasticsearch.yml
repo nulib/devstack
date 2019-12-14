@@ -1,0 +1,51 @@
+variables:
+  version: 6.3.2
+volumes:
+  data:
+service_definition:
+  image: docker.elastic.co/elasticsearch/elasticsearch:<%= version %>
+  read_only: true
+  volumes:
+    - type: volume
+      source: <%= volume('data') %>
+      target: /usr/share/elasticsearch/data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /usr/share/elasticsearch/config
+    - type: volume
+      target: /usr/share/elasticsearch/logs
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
+    - <%= file_path('elasticsearch.yml') %>:/usr/share/elasticsearch/config/elasticsearch.yml
+  ports:
+    - <%= offset_port(9201) %>:9200
+  environment:
+    discovery.type: single-node
+    http.cors.enabled: "true"
+    http.cors.allow-origin: "*"
+    http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+    http.cors.allow-headers: "X-Requested-With,X-Auth-Token,Content-Type, Content-Length, Authorization"
+  healthcheck:
+    test:
+      - CMD
+      - curl
+      - "-f"
+      - http://localhost:9200/
+    interval: 30s
+    timeout: 5s
+    retries: 3
+files:
+  elasticsearch.yml: |
+    cluster.name: "docker-cluster"
+    network.host: 0.0.0.0
+
+    # minimum_master_nodes need to be explicitly set when bound on a public IP
+    # set to 1 to allow single node clusters
+    # Details: https://github.com/elastic/elasticsearch/pull/17288
+    discovery.zen.minimum_master_nodes: 1
+    cluster.routing.allocation.disk.watermark.low: 500mb
+    cluster.routing.allocation.disk.watermark.high: 500mb
+    cluster.routing.allocation.disk.watermark.flood_stage: 500mb

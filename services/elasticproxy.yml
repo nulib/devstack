@@ -1,0 +1,33 @@
+service_definition:
+  image: nulib/elasticproxy:latest
+  read_only: true
+  volumes:
+    - type: volume
+      target: /home/node
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
+  ports:
+    - <%= offset_port(3334) %>:3334
+  environment:
+    UPSTREAM: http://elasticsearch:9200/
+    AWS_ACCESS_KEY_ID: fake_key_id
+    AWS_SECRET_ACCESS_KEY: fake_access_key
+    API_TOKEN_HEADER: X-Api-Token
+    API_TOKEN_SECRET: ab00ffc725da64fa07b20f42ed8bbcf0fda5779aa55c90cedf3a81e09e3a2b14
+    OPENAM_SERVER: https://websso.it.northwestern.edu/amserver/
+    OPENAM_COOKIE: openAMssoToken
+  healthcheck:
+    test:
+      - CMD
+      - wget
+      - "--quiet"
+      - "--tries=1"
+      - "--spider"
+      - http://localhost:3334/auth/whoami
+    interval: 30s
+    timeout: 5s
+    retries: 3

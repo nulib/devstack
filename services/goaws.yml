@@ -1,0 +1,19 @@
+volumes:
+  data:
+service_definition:
+  image: nulib/goaws
+  ports:
+    - <%= offset_port(4100) %>:4100
+  volumes:
+    - <%= volume('data') %>:/data
+  healthcheck:
+    test:
+      - CMD
+      - wget
+      - -O
+      - "-"
+      - http://localhost:4100/?Action=ListQueues
+    interval: 30s
+    timeout: 5s
+    retries: 3
+  command: --persist /data/goaws.yaml
