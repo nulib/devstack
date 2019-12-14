@@ -1,11 +1,8 @@
 module DevStack
   class Environment
-    attr_reader :name, :port_offset, :suffix
-
-    def initialize(name:, port_offset:, suffix: nil)
-      @name = name
-      @port_offset = port_offset
-      @suffix = suffix || @name
+    def initialize(config)
+      @config = { 'destroy_volumes' => false, 'port_offset' => 0 }.merge(config)
+      @config['suffix'] ||= @config['name']
     end
 
     def get_binding
@@ -13,7 +10,7 @@ module DevStack
     end
 
     def offset_port(_service, base)
-      base + @port_offset
+      base + port_offset
     end
 
     def file_path(*args)
@@ -23,6 +20,14 @@ module DevStack
 
     def volume(service, base)
       [service.name, base, suffix].join('_')
+    end
+
+    def respond_to_missing?(sym, *args)
+      @config.key?(sym.to_s)
+    end
+
+    def method_missing(sym, *args)
+      respond_to_missing?(sym) ? @config[sym.to_s] : super
     end
   end
 end

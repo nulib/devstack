@@ -22,7 +22,7 @@ service_definition:
     - POSTGRES_USER=<%= username %>
     - POSTGRES_PASSWORD=<%= password %>
   ports:
-    - 5433:5432
+    - <%= offset_port(5432) %>:5432
   healthcheck:
     test: "CMD echo 'SELECT 1' | PGPASSWORD=<%= password %> psql --host 127.0.0.1 --username <%= username %> --dbname <%= username %> --quiet --no-align --tuples-only"
     interval: 30s

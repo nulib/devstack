@@ -21,7 +21,7 @@ service_definition:
       target: /var/run
     - <%= file_path('elasticsearch.yml') %>:/usr/share/elasticsearch/config/elasticsearch.yml
   ports:
-    - <%= offset_port(9201) %>:9200
+    - <%= offset_port(9200) %>:9200
   environment:
     discovery.type: single-node
     http.cors.enabled: "true"

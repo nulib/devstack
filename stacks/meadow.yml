@@ -1,7 +1,7 @@
 ---
 db:
-  template: services/db.yml
+  template: postgres.yml
 goaws:
-  template: services/goaws.yml
+  template: goaws.yml
 minio:
-  template: services/minio.yml
+  template: minio.yml

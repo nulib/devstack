@@ -8,7 +8,7 @@ module DevStack
       @services = stack_spec.each_with_object({}) do |spec, hash|
         (name, config) = spec
         hash[name] = {
-          service: DevStack::Service.new(name, open(config['template']).read),
+          service: DevStack::Service.new(name, load_template(config['template'])),
           environment: config['environment'] || {},
           variables: config['variables'] || {}
         }
@@ -41,6 +41,8 @@ module DevStack
       }
     end
 
+    private
+
     def environment_hash(src)
       case src
       when Hash
@@ -50,6 +52,13 @@ module DevStack
       else
         {}
       end
+    end
+
+    def load_template(val)
+      return open(val).read if val.match?(/^https?:/)
+      return open(val).read if File.exists?(val)
+      path = File.join(File.expand_path('../../services', __dir__), val)
+      return open(path).read if File.exists?(path)
     end
   end
 end

@@ -1,213 +1,126 @@
 #!/usr/bin/env ruby
 
-require 'fileutils'
-require 'json'
-require 'pathname'
-require 'socket'
-require 'time'
-require 'ostruct'
+begin
+  this_file = __FILE__
+  this_file = File.readlink(this_file) while File.symlink?(this_file)
+  $LOAD_PATH << File.expand_path('../../lib', this_file)
+end
 require 'yaml'
+require 'pry'
+require 'dev_stack'
 
-class DevStack
-  attr_accessor :context
+DEFAULT_OPTIONS = { 'environment' => 'dev' }
 
-  def initialize(argv)
-    ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
-    @config_file = 'docker-compose.yml'
-    @context = OpenStruct.new argv: argv, test_mode: false, flags: [], services: [], argz: []
-    parse_command_line
-    check_test_mode
-  end
+module DevStack
+  class CLI
+    attr_reader :opts
 
-  def known_services
-    @known_services ||= YAML.safe_load(File.read(compose_file))['services'].keys
-  end
-
-  def volumes
-    @volumes ||= YAML.safe_load(File.read(compose_file))['volumes'].keys
-  end
-
-  def interpret_arg(arg)
-    expanded = known_services & (dependencies[arg] || [arg])
-    if expanded.empty?
-      context.argz << arg
-    else
-      context.services += (expanded - context.services)
+    def initialize(opts)
+      @opts = DEFAULT_OPTIONS.merge(load_defaults()).merge(opts)
     end
-  end
 
-  def parse_command_line
-    argv = context.argv
-    context.flags << argv.shift while argv.first.to_s.start_with?('-')
-    interpret_arg(argv.pop) while argv.length > 1 && !argv.last.start_with?('-')
-  end
-
-  def check_test_mode
-    return if (['-t', '--test'] & context.flags.to_a).empty?
-    ENV['COMPOSE_PROJECT_NAME'] += '_test'
-    @config_file = 'docker-compose.test.yml'
-    context.test_mode = true
-  end
-
-  def display_usage
-    output = `docker-compose 2>&1`.split(/\nCommands:\n/).last
-    commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
-    commands['ports'] = 'Get a JSON report of running services and their ports'
-    commands['update'] = 'Pull the latest devstack command/configs from github'
-    commands['version'] = 'Show the devstack version information'
-    warn %(Usage:\n  devstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
-    Hash[commands.sort].each_pair do |command, description|
-      warn format('  %-18s %s', command, description)
-    end
-  end
-
-  def version
-    File.read(root.join('VERSION')).strip
-  end
-
-  def display_version
-    Dir.chdir(root.to_s) do
-      cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse master', 'git rev-parse origin/master'].join(' && ')
-      (local_rev, remote_rev) = `#{cmds}`.strip.split
-      warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
-      return if local_rev == remote_rev
-      remote_version = `git show origin/master:VERSION`.strip
-      warn "\nVersion #{remote_version}, build #{remote_rev[0..7]} available."
-      warn 'Run `devstack update` to upgrade'
-    end
-  end
-
-  def compose_file
-    root.join(@config_file).to_s
-  end
-
-  def dependencies
-    @dependencies ||= YAML.safe_load(File.read(root.join('sets.yml')))
-  end
-
-  def root
-    @root ||= Pathname(File.expand_path('../..', this_file))
-  end
-
-  def this_file
-    if @this_file.nil?
-      @this_file = __FILE__
-      @this_file = File.readlink(@this_file) while File.symlink?(@this_file)
-    end
-    @this_file
-  end
-
-  def cmdline
-    (['docker-compose', '-f', compose_file] + context.argv + context.services + context.argz).tap do |result|
-      result << '-v' if context.test_mode && (['down', '-v'] & context.argv == ['down'])
-    end
-  end
-
-  def trap_cmd
-    return [] unless ['up', '-d'] & context.argv == ['up']
-    ['docker-compose', '-f', compose_file, 'down'].tap do |result|
-      result << '-v' if context.test_mode
-    end
-  end
-
-  def exec!
-    warn cmdline.inspect if context.flags.include?('-d')
-    begin
-      Kernel.system(*cmdline)
-    rescue Interrupt # rubocop:disable Lint/HandleExceptions
-      # Let it go
-    ensure
-      final_cmd = trap_cmd
-      Kernel.system(*final_cmd) unless final_cmd.empty?
-    end
-  end
-
-  def link!
-    Dir.chdir(root.to_s) do
-      Dir['bin/*'].each do |bin|
-        source = File.expand_path(bin)
-        target = "/usr/local/bin/#{File.basename(bin)}"
-        unless File.exist?(target)
-          warn "Linking #{source} -> #{target}"
-          FileUtils.ln_s source, target 
+    def compose_file
+      if @compose_file.nil?
+        @compose_file = environment.file_path('docker-compose.yml').to_s
+        File.open(@compose_file, 'w') do |file|
+          file.write(stack.docker_compose_yaml(environment))
         end
       end
-    end
-  end
-
-  def portmap!
-    label = ENV['COMPOSE_PROJECT_NAME']
-    request = %{/containers/json?filters={"label":["com.docker.compose.project=#{label}"]}}
-    status, headers, containers = docker_sock(request)
-    result = containers.inject({}) do |r, c| 
-      name = c['Names'].find { |n| n.include?(label) }.gsub(%r{^/#{label}_(.+)_\d+$},'\1')
-      r[name] = c['Ports'].inject({}) { |h, p| h[p['PrivatePort']] = p['PublicPort']; h }.compact 
-      r
-    end
-    puts result.to_json
-  end
-
-  def update!
-    Dir.chdir(root.to_s) do
-      `git pull origin`
-      `docker-compose -f #{compose_file} pull`
-      link!
-    end
-    display_version
-  end
-
-  def export!
-    cmd = %{docker-compose -f #{compose_file} run -v #{Dir.pwd}:/external transfer export #{volumes.join(" ")}}
-    system(cmd)
-  end
-
-  def import!
-    input_file = context.argz.first
-    cmd = %{docker-compose -f #{compose_file} run -v #{File.expand_path(input_file)}:/external/#{File.basename(input_file)} transfer import #{input_file}}
-    puts cmd
-    system(cmd)
-  end
-
-  def run!
-    if (context.flags & ['-h', '--help']).any? || context.argv.empty? || (context.argv == ['help'] && context.argz.empty?)
-      display_usage
-      exit 1
+      @compose_file
     end
 
-    case context.argv.first
-    when 'version', '-v', '--version'
-      display_version
-    when 'export'
-      export!
-    when 'import'
-      import!
-    when 'link'
-      link!
-    when 'portmap'
-      portmap!
-    when 'update'
-      update!
-    else
-      exec!
-    end
-  end
-
-  private
-
-  def docker_sock(request)
-    UNIXSocket.open('/var/run/docker.sock') do |socket|
-      socket.send("GET #{request} HTTP/1.0\r\n\r\n", 0)
-      headers, body = socket.read.split(/\r\n\r\n/,2)
-      headers = headers.lines.collect(&:chomp)
-      status = headers.shift
-      headers = headers.inject({}) do |acc, head| 
-        key, value = head.split(/\s*:\s*/, 2)
-        acc[key.downcase] = value
-        acc
+    def command_line
+      (['docker-compose', '-f', compose_file] + ARGV).tap do |result|
+        result << '-v' if ARGV[0] == 'down' && environment.destroy_volumes
       end
-      [status, headers, JSON.parse(body)]
+    end
+
+    def environment
+      @environment ||= DevStack::Environment.new YAML.load(environment_file(opts['environment']))
+    end
+
+    def stack
+      if @stack.nil?
+        stack_yaml = opts['stack'] ? stack_file(opts['stack']) : load_file(find_stack_file(File.expand_path('.')))
+        @stack = DevStack::Stack.new YAML.load(stack_yaml)
+      end
+      @stack
+    end
+
+    def trap_cmd
+      return [] unless ['up', '-d'] & ARGV == ['up']
+      ['docker-compose', '-f', compose_file, 'down'].tap do |result|
+        result << '-v' if environment.destroy_volumes
+      end
+    end
+  
+    def exec!
+      ENV['COMPOSE_PROJECT_NAME'] ||= "devstack"
+      ENV['COMPOSE_PROJECT_NAME'] = [ENV['COMPOSE_PROJECT_NAME'], environment.name].join('_')
+      begin
+        Kernel.system(*command_line)
+      rescue Interrupt # rubocop:disable Lint/HandleExceptions
+        # Let it go
+      ensure
+        final_cmd = trap_cmd
+        Kernel.system(*final_cmd) unless final_cmd.empty?
+      end
+    end
+  
+    def environment_file(val)
+      load_file(val, File.expand_path('environments', DevStack.root))
+    end
+
+    def stack_file(val)
+      load_file(val, File.expand_path('stacks', DevStack.root))
+    end
+
+    def load_file(val, default_location = '.')
+      return open(val).read if val.match?(/^https?:/)
+      return open(val).read if File.exists?(val)
+      path = File.join(default_location, val)
+      path += '.yml' if File.extname(path).empty?
+      return open(path).read if File.exists?(path)
+    end
+
+    def load_defaults
+      devstack_file = find_devstack_file(File.expand_path('.'))
+      return {} if devstack_file.nil? || !File.exists?(devstack_file)
+      YAML.load(File.read(devstack_file))
+    end
+
+    def find_devstack_file(path)
+      find_file_upstream(path, '.devstack')
+    end
+
+    def find_stack_file(path)
+      find_file_upstream(path, '.stack')
+    end
+
+    def find_file_upstream(path, filename)
+      candidate = File.join(path, filename)
+      return candidate if File.exists?(candidate)
+      return nil if path == '/' or path == ENV['HOME']
+      return find_file_upstream(File.expand_path('..', path), filename)
     end
   end
 end
 
-DevStack.new(ARGV).run!
+case ARGV.first
+when 'version', '-v', '--version'
+  DevStack.display_version
+when 'link'
+  DevStack.link!
+when 'update'
+  DevStack.update!
+else
+  environment = ENV['DEVSTACK_ENV']
+  if ARGV[0] == '-t'
+    environment = 'test'
+    ARGV.slice!(0)
+  end
+  stack = ENV['DEVSTACK_STACK']
+  stack = ARGV.slice!(-1) if ARGV.length > 1 && ARGV.last.to_s !~ /^-/
+  options = { 'environment' => environment, 'stack' => stack }.reject { |k,v| v.nil? }
+  DevStack::CLI.new(options).exec!
+end

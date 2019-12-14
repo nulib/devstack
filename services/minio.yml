@@ -16,7 +16,7 @@ service_definition:
     - type: volume
       target: /var/run
   ports:
-    - <%= offset_port(9001) %>:9000
+    - <%= offset_port(9000) %>:9000
   environment:
     MINIO_ACCESS_KEY: minio
     MINIO_SECRET_KEY: minio123

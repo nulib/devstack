@@ -1,13 +1,13 @@
 ---
 db:
-  template: services/db.yml
+  template: postgres.yml
 elasticsearch:
-  template: services/elasticsearch.yml
+  template: elasticsearch.yml
 fedora:
-  template: services/fedora.yml
+  template: fedora.yml
 minio:
-  template: services/minio.yml
+  template: minio.yml
 redis:
-  template: services/redis.yml
+  template: redis.yml
 solr:
-  template: services/solr.yml
+  template: solr.yml

@@ -1,11 +1,11 @@
 ---
 elasticproxy:
-  template: services/elasticproxy.yml
+  template: elasticproxy.yml
 elasticsearch:
-  template: services/elasticsearch.yml
+  template: elasticsearch.yml
 iiif:
-  template: services/iiif.yml
+  template: iiif.yml
 kibana:
-  template: services/kibana.yml
+  template: kibana.yml
 minio:
-  template: services/minio.yml
+  template: minio.yml
