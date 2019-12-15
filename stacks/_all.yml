@@ -1,10 +1,20 @@
 ---
 db:
   template: postgres.yml
+elasticproxy:
+  template: elasticproxy.yml
 elasticsearch:
   template: elasticsearch.yml
 fedora:
   template: fedora4.yml
+goaws:
+  template: goaws.yml
+iiif:
+  template: iiif.yml
+kibana:
+  template: kibana.yml
+minio:
+  template: minio.yml
 redis:
   template: redis.yml
 solr:

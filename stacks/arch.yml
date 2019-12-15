@@ -4,10 +4,10 @@ db:
 elasticsearch:
   template: elasticsearch.yml
 fedora:
-  template: fedora.yml
+  template: fedora4.yml
 minio:
   template: minio.yml
 redis:
   template: redis.yml
 solr:
-  template: solr.yml
+  template: solr7.yml

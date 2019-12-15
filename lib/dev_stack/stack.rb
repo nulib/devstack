@@ -7,8 +7,10 @@ module DevStack
     def initialize(stack_spec)
       @services = stack_spec.each_with_object({}) do |spec, hash|
         (name, config) = spec
+        template = load_template(config['template'])
+        raise "Template missing: #{config['template']}" if template.nil?
         hash[name] = {
-          service: DevStack::Service.new(name, load_template(config['template'])),
+          service: DevStack::Service.new(name, template),
           environment: config['environment'] || {},
           variables: config['variables'] || {}
         }
