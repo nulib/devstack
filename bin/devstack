@@ -1,27 +1,76 @@
 #!/usr/bin/env ruby
 
-begin
-  this_file = __FILE__
-  this_file = File.readlink(this_file) while File.symlink?(this_file)
-  $LOAD_PATH << File.expand_path('../../lib', this_file)
-end
+require 'pathname'
+$LOAD_PATH << File.expand_path('../lib', Pathname(__dir__).realpath)
+require 'optparse'
 require 'dev_stack/cli'
+require 'pry'
 
-case ARGV.first
-when 'version', '-v', '--version'
+COMMANDS = %w(build bundle config create down events exec help images kill link logs 
+  pause port ps pull push restart rm run scale start stop top unpause up update version)
+
+last_index = ARGV.reverse.find_index { |arg| COMMANDS.include?(arg) }
+command_index = last_index.nil? ? ARGV.length : ARGV.length - ARGV.reverse.find_index { |arg| COMMANDS.include?(arg) } - 1
+devstack_argv = command_index > 0 ? ARGV.slice(0..command_index - 1) : []
+docker_argv = ARGV.drop(devstack_argv.length)
+
+options = { 'environment' => (ENV['DEVSTACK_ENV'] || 'dev'), 'stack' => ENV['DEVSTACK_STACK'] }
+
+help = nil
+OptionParser.new do |opts|
+  help = opts
+  opts.banner = "Usage: devstack [options] DOCKER_COMPOSE_COMMAND_AND_OPTIONS"
+
+  opts.on('-e ENV', '--environment ENV', 'Environment name') do |arg|
+    options['environment'] = arg
+  end
+
+  opts.on('-l TYPE', '--list TYPE', ['environments', 'stacks'], 'List available environments or stacks') do |arg|
+    Dir.chdir(File.join(DevStack.root, arg)) do
+      puts "List of installed #{arg}:"
+      Dir['*.yml'].sort.each do |f| 
+        puts "  #{File.basename(f, '.yml')}"
+      end
+    end
+    exit
+  end
+
+  opts.on('-s STACK', '--stack STACK', 'Name of stack to operate on') do |arg|
+    options['stack'] = arg
+  end
+
+  opts.on('-t', 'Test stack (same as "-e test")') do
+    options['environment'] = 'test'
+  end
+
+  opts.on_tail('-h', '--help', 'Display this help message') do
+    puts <<-__EOF__
+  #{opts}
+  See `docker-compose help` for docker-compose commands and options
+__EOF__
+    exit
+  end
+
+  opts.on_tail('-v', '--version', 'Display version info') do
+    DevStack.display_version
+    exit
+  end
+end.parse!(devstack_argv)
+
+options.reject! { |k,v| v.nil? }
+
+case docker_argv.first
+when nil, '', '-h', '--help', 'help'
+  puts <<-__EOF__
+#{help}
+See `docker-compose help` for docker-compose commands and options
+__EOF__
+when '-v', '--version', 'version'
   DevStack.display_version
 when 'link'
   DevStack.link!
 when 'update'
   DevStack.update!
 else
-  environment = ENV['DEVSTACK_ENV']
-  if ARGV[0] == '-t'
-    environment = 'test'
-    ARGV.slice!(0)
-  end
-  stack = ENV['DEVSTACK_STACK']
-  stack = ARGV.slice!(-1) if ARGV.length > 1 && ARGV.last.to_s !~ /^-/
-  options = { 'environment' => environment, 'stack' => stack }.reject { |k,v| v.nil? }
-  DevStack::CLI.new(options).exec!
+  DevStack::CLI.new(options, docker_argv).exec!
 end

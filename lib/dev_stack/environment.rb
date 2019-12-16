@@ -14,7 +14,7 @@ module DevStack
     end
 
     def file_path(*args)
-      @base_dir ||= Pathname.new(Dir.mktmpdir(['devstack_',"_#{suffix}"]))
+      @base_dir ||= Pathname.new(Dir.mktmpdir(['devstack_',"_#{suffix}"])).realpath
       @base_dir.join(*args)
     end
 

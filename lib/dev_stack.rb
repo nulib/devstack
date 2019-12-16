@@ -10,6 +10,10 @@ module DevStack
       File.expand_path('..', __dir__)
     end
 
+    def is_stack?(val)
+      val.match?(/^https?:/) || File.file?(val) || File.exists?(File.join(DevStack.root, "stacks", "#{val}.yml"))
+    end
+
     def link!
       Dir.chdir(root) do
         Dir['bin/*'].each do |bin|
