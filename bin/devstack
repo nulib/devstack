@@ -25,7 +25,7 @@ OptionParser.new do |opts|
     options['environment'] = arg
   end
 
-  opts.on('-l TYPE', '--list TYPE', ['environments', 'stacks'], 'List available environments or stacks') do |arg|
+  opts.on('-l TYPE', '--list TYPE', ['environments', 'services', 'stacks'], 'List available services, stacks, or environments') do |arg|
     Dir.chdir(File.join(DevStack.root, arg)) do
       puts "List of installed #{arg}:"
       Dir['*.yml'].sort.each do |f| 
