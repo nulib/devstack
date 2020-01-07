@@ -12,7 +12,6 @@ RUN apt-get update \
         yarn \
     && rm -rf /var/lib/apt/lists/*
 
-
 WORKDIR /usr/src/app
 RUN git clone https://github.com/geoblacklight/workshop-app.git .
 RUN bundle install
