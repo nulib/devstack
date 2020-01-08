@@ -5,6 +5,8 @@ volumes:
   db:
   es:
   goaws:
+  ldap_config:
+  ldap_data:
   minio:
   solr:
 services:
@@ -180,6 +182,23 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  ldap:
+    image: nowsci/samba-domain
+    volumes:
+      - type: volume
+        source: ldap_config
+        target: /etc/samba/external
+      - type: volume
+        source: ldap_data
+        target: /var/lib/samba
+    ports:
+      - 390:389
+      - 687:686
+    environment:
+      DOMAIN: library.northwestern.edu
+      DOMAINPASS: d0ck3rAdm1n!
+      INSECURELDAP: "true"
+      NOCOMPLEXITY: "true"
   sqs:
     image: s12v/elasticmq
     ports:

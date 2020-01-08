@@ -5,6 +5,8 @@ volumes:
   db_test:
   es_test:
   goaws_test:
+  ldap_config_test:
+  ldap_data_test:
   minio_test:
   solr_test:
 services:
@@ -181,6 +183,23 @@ services:
     image: s12v/elasticmq
     ports:
       - 9326:9324
+  ldap:
+    image: nowsci/samba-domain
+    volumes:
+      - type: volume
+        source: ldap_config_test
+        target: /etc/samba/external
+      - type: volume
+        source: ldap_data_test
+        target: /var/lib/samba
+    ports:
+      - 391:389
+      - 688:686
+    environment:
+      DOMAIN: library.northwestern.edu
+      DOMAINPASS: d0ck3rAdm1n!
+      INSECURELDAP: "true"
+      NOCOMPLEXITY: "true"
   minio:
     image: minio/minio
     read_only: true
