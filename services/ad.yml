@@ -1,0 +1,16 @@
+volumes:
+  data:
+service_definition:
+  image: nowsci/samba-domain
+  volumes:
+    - type: volume
+      source: <%= volume('data') %>
+      target: /etc/samba/external
+  ports:
+    - <%= offset_port(389) %>:389
+    - <%= offset_port(686) %>:686
+  environment:
+    DOMAIN: library.northwestern.edu
+    DOMAINPASS: d0ck3rAdm1n!
+    INSECURELDAP: "true"
+    NOCOMPLEXITY: "true"

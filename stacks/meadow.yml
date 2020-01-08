@@ -1,4 +1,6 @@
 ---
+ldap:
+  template: ad.yml
 db:
   template: postgres.yml
 goaws:
