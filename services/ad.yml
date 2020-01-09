@@ -1,11 +1,15 @@
 volumes:
+  config:
   data:
 service_definition:
   image: nowsci/samba-domain
   volumes:
     - type: volume
-      source: <%= volume('data') %>
+      source: <%= volume('config') %>
       target: /etc/samba/external
+    - type: volume
+      source: <%= volume('data') %>
+      target: /var/lib/samba
   ports:
     - <%= offset_port(389) %>:389
     - <%= offset_port(686) %>:686
