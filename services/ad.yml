@@ -2,7 +2,7 @@ volumes:
   config:
   data:
 service_definition:
-  image: nowsci/samba-domain
+  image: nulib/ldap-test
   volumes:
     - type: volume
       source: <%= volume('config') %>
