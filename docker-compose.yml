@@ -183,7 +183,7 @@ services:
       timeout: 5s
       retries: 3
   ldap:
-    image: nowsci/samba-domain
+    image: nulib/ldap-test
     volumes:
       - type: volume
         source: ldap_config
