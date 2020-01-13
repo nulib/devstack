@@ -29,4 +29,5 @@ glaze:
 meadow:
   - db
   - goaws
+  - ldap
   - minio
