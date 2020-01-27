@@ -3,9 +3,12 @@ version: '3.4'
 volumes:
   db:
   solr:
+  html:
 services:
   web:
     build: ./dockerfiles/rails/
+    depends_on:
+      - lsyncd
     ports:
       - "3000:3000"
     links:
@@ -14,7 +17,7 @@ services:
       - RAILS_ENV=development
       - SOLR_URL="http://solr:8983/solr/blacklight-core"
     volumes:
-      - $PWD/.:/usr/src/app
+      - html:/usr/src/app
     command: bash -c "rm -f tmp/pids/server.pid && bundle install && bundle exec rake db:migrate && bundle exec rails s -p 3000 -b '0.0.0.0'"
   db:
     image: postgres:10-alpine
@@ -72,3 +75,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  lsyncd:
+    image: allthings/lsyncd
+    command: -rsync /mnt/html /var/www/html
+    volumes:
+      - $PWD/.:/mnt/html
+      - html:/var/www/html
