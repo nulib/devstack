@@ -1,7 +1,6 @@
 ---
 avr:
   - db
-  - elasticsearch
   - fedora
   - redis
   - solr

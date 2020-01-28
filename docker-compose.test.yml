@@ -5,8 +5,7 @@ volumes:
   db_test:
   es_test:
   goaws_test:
-  ldap_config_test:
-  ldap_data_test:
+  ldap_test:
   minio_test:
   solr_test:
 services:
@@ -184,17 +183,14 @@ services:
     ports:
       - 9326:9324
   ldap:
-    image: nulib/ldap-test
+    image: nulib/ldap-alpine
     volumes:
       - type: volume
-        source: ldap_config_test
-        target: /etc/samba/external
-      - type: volume
-        source: ldap_data_test
+        source: ldap_test
         target: /var/lib/samba
     ports:
       - 391:389
-      - 688:686
+      - 638:636
     environment:
       DOMAIN: library.northwestern.edu
       DOMAINPASS: d0ck3rAdm1n!

@@ -5,8 +5,7 @@ volumes:
   db:
   es:
   goaws:
-  ldap_config:
-  ldap_data:
+  ldap:
   minio:
   solr:
 services:
@@ -183,17 +182,14 @@ services:
       timeout: 5s
       retries: 3
   ldap:
-    image: nulib/ldap-test
+    image: nulib/ldap-alpine
     volumes:
       - type: volume
-        source: ldap_config
-        target: /etc/samba/external
-      - type: volume
-        source: ldap_data
+        source: ldap
         target: /var/lib/samba
     ports:
       - 390:389
-      - 687:686
+      - 637:636
     environment:
       DOMAIN: library.northwestern.edu
       DOMAINPASS: d0ck3rAdm1n!
