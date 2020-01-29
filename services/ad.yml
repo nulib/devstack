@@ -1,20 +1,14 @@
 volumes:
-  config:
   data:
 service_definition:
-  image: nulib/ldap-test
+  image: nulib/ldap-alpine
   volumes:
-    - type: volume
-      source: <%= volume('config') %>
-      target: /etc/samba/external
     - type: volume
       source: <%= volume('data') %>
       target: /var/lib/samba
   ports:
     - <%= offset_port(389) %>:389
-    - <%= offset_port(686) %>:686
+    - <%= offset_port(636) %>:636
   environment:
     DOMAIN: library.northwestern.edu
     DOMAINPASS: d0ck3rAdm1n!
-    INSECURELDAP: "true"
-    NOCOMPLEXITY: "true"
