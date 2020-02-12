@@ -29,6 +29,5 @@ meadow:
   - db
   - elasticsearch
   - goaws
-  - kibana
   - ldap
   - minio
