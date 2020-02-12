@@ -13,6 +13,7 @@ services:
     depends_on:
     - minio
     image: nulib/iiif-express
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -39,6 +40,7 @@ services:
       retries: 3
   db:
     image: postgres:10-alpine
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -66,6 +68,7 @@ services:
     depends_on:
     - elasticsearch
     image: nulib/elasticproxy:latest
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -99,6 +102,7 @@ services:
       retries: 3
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -134,6 +138,7 @@ services:
       retries: 3
   fedora:
     image: samvera/fcrepo4:4.7.5
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -151,6 +156,7 @@ services:
     - 8984:8080
   goaws:
     image: nulib/goaws
+    restart: unless-stopped
     ports:
     - 4101:4100
     volumes:
@@ -170,6 +176,7 @@ services:
     depends_on:
     - elasticsearch
     image: docker.elastic.co/kibana/kibana:6.3.2
+    restart: unless-stopped
     ports:
     - 5602:5601
     healthcheck:
@@ -183,6 +190,7 @@ services:
       retries: 3
   ldap:
     image: nulib/ldap-alpine
+    restart: unless-stopped
     volumes:
       - type: volume
         source: ldap
@@ -195,12 +203,26 @@ services:
       DOMAINPASS: d0ck3rAdm1n!
       INSECURELDAP: "true"
       NOCOMPLEXITY: "true"
+    healthcheck:
+      test:
+      - CMD
+      - echo
+      - ""
+      - "|"
+      - nc
+      - localhost
+      - "389"
+      interval: 30s
+      timeout: 5s
+      retries: 3
   sqs:
     image: s12v/elasticmq
+    restart: unless-stopped
     ports:
       - 9325:9324
   minio:
     image: minio/minio
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -234,6 +256,7 @@ services:
       retries: 3
   pgadmin:
     image: dpage/pgadmin4
+    restart: unless-stopped
     ports:
     - 5051:80
     environment:
@@ -247,6 +270,7 @@ services:
     - ./extras/pgadmin4/pgpass:/pgpass
   redis:
     image: redis:alpine
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -267,6 +291,7 @@ services:
       retries: 3
   solr:
     image: solr:7.2-alpine
+    restart: unless-stopped
     read_only: true
     volumes:
     - type: volume
@@ -296,6 +321,7 @@ services:
       retries: 3
   transfer:
     image: nulib/devstack-transfer
+    restart: unless-stopped
     read_only: true
     volumes:
       - fedora:/volumes/fedora
