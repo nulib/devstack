@@ -29,5 +29,6 @@ meadow:
   - db
   - elasticsearch
   - goaws
+  - iiif
   - ldap
   - minio
