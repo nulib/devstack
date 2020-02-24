@@ -247,8 +247,7 @@ services:
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
-    entrypoint: /bin/sh
-    command: -c 'mkdir -p /data/dev-pyramids && minio server /data'
+    command: server /data
     healthcheck:
       test:
       - CMD
