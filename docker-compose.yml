@@ -16,25 +16,34 @@ services:
     restart: unless-stopped
     read_only: true
     volumes:
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.full.pem
+      target: /home/node/.certs/public.crt
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.key.pem
+      target: /home/node/.certs/private.key
     - type: volume
       target: /tmp
     - type: volume
       target: /var/run
+    links:
+    - minio:devbox.library.northwestern.edu
     ports:
     - 8183:3000
     environment:
     - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=http://minio:9000/
+    - S3_ENDPOINT=https://devbox.library.northwestern.edu:9000/
     - AWS_ACCESS_KEY_ID=minio
     - AWS_SECRET_ACCESS_KEY=minio123
+    - SSL_CERT=/home/node/.certs/public.crt
+    - SSL_KEY=/home/node/.certs/private.key
     healthcheck:
       test:
       - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:3000/iiif/2/
+      - curl
+      - --connect-to
+      - devbox.library.northwestern.edu:3000:localhost:3000
+      - https://devbox.library.northwestern.edu:3000/iiif/2
       interval: 30s
       timeout: 5s
       retries: 3
@@ -75,10 +84,10 @@ services:
       target: /home/node
     - type: bind
       source: $HOME/.devbox_cert/devbox.library.full.pem
-      target: /home/node/.minio/certs/public.crt
+      target: /home/node/.certs/public.crt
     - type: bind
       source: $HOME/.devbox_cert/devbox.library.key.pem
-      target: /home/node/.minio/certs/private.key
+      target: /home/node/.certs/private.key
     - type: volume
       target: /tmp
     - type: volume
@@ -93,18 +102,16 @@ services:
       AWS_SECRET_ACCESS_KEY: fake_access_key
       API_TOKEN_HEADER: X-Api-Token
       API_TOKEN_SECRET: ab00ffc725da64fa07b20f42ed8bbcf0fda5779aa55c90cedf3a81e09e3a2b14
-      OPENAM_SERVER: https://websso.it.northwestern.edu/amserver/
-      OPENAM_COOKIE: openAMssoToken
+      NUSSO_API_KEY: ${SETTINGS__NUSSO__CONSUMER_KEY}
       SSL_CERT: /home/node/.certs/public.crt
       SSL_KEY: /home/node/.certs/private.key
     healthcheck:
       test:
       - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:3334/auth/whoami
+      - curl
+      - --connect-to
+      - devbox.library.northwestern.edu:3334:localhost:3334
+      - https://devbox.library.northwestern.edu:3334/auth/whoami
       interval: 30s
       timeout: 5s
       retries: 3
@@ -266,11 +273,10 @@ services:
     healthcheck:
       test:
       - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:9000/minio/health/live
+      - curl
+      - --connect-to
+      - devbox.library.northwestern.edu:9000:localhost:9000
+      - https://devbox.library.northwestern.edu:9000/minio/health/live
       interval: 30s
       timeout: 5s
       retries: 3

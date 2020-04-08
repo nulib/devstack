@@ -133,11 +133,18 @@ class DevStack
         end
       end
 
-      source = "/usr/local/etc/devbox_ssl"
-      target = File.join(ENV['HOME'], '.devbox_cert')
-      unless File.exist?(target)
-        warn "Linking #{source} -> #{target}"
-        FileUtils.ln_s source, target 
+      cert_dir = File.expand_path(File.join(ENV['HOME'], '.devbox_cert'))
+      unless Dir.exists?(cert_dir)
+        FileUtils.mkdir_p(cert_dir)
+      end
+
+      Dir['/usr/local/etc/devbox_ssl/*'].each do |file|
+        source = File.expand_path(file)
+        target = File.join(cert_dir, File.basename(file))
+        unless File.exist?(target)
+          warn "Copying #{source} -> #{target}"
+          FileUtils.cp source, target 
+        end
       end
     end
   end
