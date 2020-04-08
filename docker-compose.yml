@@ -73,6 +73,12 @@ services:
     volumes:
     - type: volume
       target: /home/node
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.full.pem
+      target: /home/node/.minio/certs/public.crt
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.key.pem
+      target: /home/node/.minio/certs/private.key
     - type: volume
       target: /tmp
     - type: volume
@@ -89,6 +95,8 @@ services:
       API_TOKEN_SECRET: ab00ffc725da64fa07b20f42ed8bbcf0fda5779aa55c90cedf3a81e09e3a2b14
       OPENAM_SERVER: https://websso.it.northwestern.edu/amserver/
       OPENAM_COOKIE: openAMssoToken
+      SSL_CERT: /home/node/.certs/public.crt
+      SSL_KEY: /home/node/.certs/private.key
     healthcheck:
       test:
       - CMD
@@ -122,7 +130,8 @@ services:
     ports:
     - 9201:9200
     environment:
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      ES_HEAP_SIZE: "256m"
+      ES_JAVA_OPTS: "-Xms256m -Xmx512m"
       bootstrap.memory_lock: "true"
       discovery.type: single-node
       http.cors.enabled: "true"
@@ -236,6 +245,12 @@ services:
       target: /data
     - type: volume
       target: /root/.minio
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.full.pem
+      target: /root/.minio/certs/public.crt
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.key.pem
+      target: /root/.minio/certs/private.key
     - type: volume
       target: /tmp
     - type: volume

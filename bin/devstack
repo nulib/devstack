@@ -132,6 +132,13 @@ class DevStack
           FileUtils.ln_s source, target 
         end
       end
+
+      source = "/usr/local/etc/devbox_ssl"
+      target = File.join(ENV['HOME'], '.devbox_cert')
+      unless File.exist?(target)
+        warn "Linking #{source} -> #{target}"
+        FileUtils.ln_s source, target 
+      end
     end
   end
 
