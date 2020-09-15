@@ -8,14 +8,13 @@ credentials = Aws::SharedCredentials.new
 ssm = Aws::SSM::Client.new(credentials: credentials)
 endpoint = ssm.get_parameter(name: '/stack-donut/Settings/common_indexer/endpoint', with_decryption: true).parameter.value
 region = `aws configure get region --profile #{credentials.profile_name}`.chomp
-vars = credentials.credentials
 cmdline = [
   'docker',
   'run',
+  '-v',
+  "#{ENV['HOME']}/.aws:/.aws",
   '-e',
-  "AWS_ACCESS_KEY_ID=#{vars.access_key_id}",
-  '-e',
-  "AWS_SECRET_ACCESS_KEY=#{vars.secret_access_key}",
+  "AWS_PROFILE=#{ENV['AWS_PROFILE']}",
   '-e',
   "AWS_REGION=#{region}",
   '-ti',
