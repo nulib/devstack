@@ -3,27 +3,55 @@
 require 'aws-sdk-core'
 require 'aws-sdk-ssm'
 
-ENV['AWS_PROFILE'] ||= ENV['AWS_DEFAULT_PROFILE']
-credentials = Aws::SharedCredentials.new
-ssm = Aws::SSM::Client.new(credentials: credentials)
-endpoint = ssm.get_parameter(name: '/stack-donut/Settings/common_indexer/endpoint', with_decryption: true).parameter.value
-region = `aws configure get region --profile #{credentials.profile_name}`.chomp
-cmdline = [
-  'docker',
-  'run',
-  '-v',
-  "#{ENV['HOME']}/.aws:/.aws",
-  '-e',
-  "AWS_PROFILE=#{ENV['AWS_PROFILE']}",
-  '-e',
-  "AWS_REGION=#{region}",
-  '-ti',
-  '-p',
-  '9200:8080',
-  'cllunsford/aws-signing-proxy',
-  '-target',
-  endpoint
-]
-warn "Proxying http://localhost:9200/ to #{endpoint}"
-warn "Kibana available on http://localhost:9200/_plugin/kibana/"
-Kernel.system(*cmdline, out: File::NULL)
+def main
+  ENV['AWS_PROFILE'] ||= ENV['AWS_DEFAULT_PROFILE']
+  credentials = shared_credentials()
+  endpoint = elasticsearch_endpoint(credentials)
+  region = `aws configure get region --profile #{credentials.profile_name}`.chomp
+  cmdline = [
+    'docker',
+    'run',
+    '-v',
+    "#{ENV['HOME']}/.aws:/.aws",
+    '-e',
+    "AWS_PROFILE=#{ENV['AWS_PROFILE']}",
+    '-e',
+    "AWS_REGION=#{region}",
+    '-ti',
+    '-p',
+    '9200:8080',
+    'cllunsford/aws-signing-proxy',
+    '-target',
+    endpoint
+  ]
+  warn "Proxying http://localhost:9200/ to #{endpoint}"
+  warn "Kibana available on http://localhost:9200/_plugin/kibana/"
+  Kernel.system(*cmdline, out: File::NULL)
+end
+
+def elasticsearch_endpoint(credentials)
+  ssm = Aws::SSM::Client.new(credentials: credentials)
+  ssm.get_parameter(name: '/stack-donut/Settings/common_indexer/endpoint', with_decryption: true).parameter.value
+rescue Aws::SSM::Errors::ExpiredTokenException
+  aws_session_error(credentials, 'AWS session token for profile %s is expired.')
+end
+
+def shared_credentials
+  Aws::SharedCredentials.new.tap do |credentials|
+    if credentials.credentials.nil?
+      aws_session_error(credentials, 'AWS Credentials not found for profile %s.') 
+    end
+  end
+end
+
+def aws_session_error(credentials, error_string)
+  profile = credentials.profile_name
+  $stderr.puts <<~__EOC__
+  #{error_string % profile} Please run the following command and try again:
+
+      aws-adfs login --adfs-host=ads-fed.northwestern.edu --profile=#{profile}
+  __EOC__
+  exit(128)
+end
+
+main()
