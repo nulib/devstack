@@ -103,6 +103,7 @@ services:
       AWS_SECRET_ACCESS_KEY: fake_access_key
       API_TOKEN_HEADER: X-Api-Token
       API_TOKEN_SECRET: ab00ffc725da64fa07b20f42ed8bbcf0fda5779aa55c90cedf3a81e09e3a2b14
+      NUSSO_BASE_URL: ${SETTINGS__NUSSO__BASE_URL}
       NUSSO_API_KEY: ${SETTINGS__NUSSO__CONSUMER_KEY}
       SSL_CERT: /home/node/.certs/public.crt
       SSL_KEY: /home/node/.certs/private.key
