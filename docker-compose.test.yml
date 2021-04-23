@@ -100,7 +100,7 @@ services:
       timeout: 5s
       retries: 3
   elasticsearch:
-    image: bitnami/elasticsearch:6
+    image: bitnami/elasticsearch:6.8.14
     restart: unless-stopped
     read_only: true
     volumes:
