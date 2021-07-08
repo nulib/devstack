@@ -169,6 +169,15 @@ services:
       timeout: 5s
       retries: 3
     command: --persist /data/goaws.yaml
+  hls:
+    depends_on:
+    - minio
+    image: avalonmediasystem/nginx:minio
+    environment:
+    - AVALON_DOMAIN=http://host.docker.internal:3000
+    - AVALON_STREAMING_BUCKET_URL=http://minio:9000/derivatives/
+    ports:
+    - '8881:80'
   kibana:
     depends_on:
     - elasticsearch
