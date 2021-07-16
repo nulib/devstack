@@ -2,6 +2,7 @@
 avr:
   - db
   - fedora
+  - goaws
   - hls
   - redis
   - solr

@@ -1,0 +1,15 @@
+Local:
+  Host: localhost
+  Port: 4102
+  Region: 
+  AccountId: "100010001000"
+  LogToFile: false
+  LogFile: .st/goaws_messages.log
+  QueueAttributeDefaults:
+    VisibilityTimeout: 30
+    ReceiveMessageWaitTimeSeconds: 0
+  Queues: []
+  Topics: []
+  RandomLatency:
+    Min: 0
+    Max: 0

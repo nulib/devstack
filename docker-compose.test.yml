@@ -155,9 +155,10 @@ services:
     image: nulib/goaws
     restart: unless-stopped
     ports:
-    - 4102:4100
+    - 4102:4102
     volumes:
     - goaws_test:/data
+    - ./extras/goaws/test.yml:/conf/goaws.yaml
     healthcheck:
       test:
       - CMD
