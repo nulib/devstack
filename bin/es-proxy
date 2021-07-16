@@ -1,7 +1,16 @@
 #!/usr/bin/env ruby
 
+require 'bundler/inline'
+
+gemfile do
+  source 'https://rubygems.org'
+
+  gem 'aws-sdk-core'
+  gem 'aws-sdk-elasticsearchservice'
+end
+
 require 'aws-sdk-core'
-require 'aws-sdk-ssm'
+require 'aws-sdk-elasticsearchservice'
 
 def main
   ENV['AWS_PROFILE'] ||= ENV['AWS_DEFAULT_PROFILE']
@@ -30,8 +39,10 @@ def main
 end
 
 def elasticsearch_endpoint(credentials)
-  ssm = Aws::SSM::Client.new(credentials: credentials)
-  ssm.get_parameter(name: '/stack-donut/Settings/common_indexer/endpoint', with_decryption: true).parameter.value
+  es = Aws::ElasticsearchService::Client.new(credentials: credentials)
+  domain_name = es.list_domain_names.domain_names.find { |domain| domain.domain_name =~ /common-index/ }.domain_name
+  endpoint = es.describe_elasticsearch_domain(domain_name: domain_name).domain_status.endpoint
+  "https://#{endpoint}"
 rescue Aws::SSM::Errors::ExpiredTokenException
   aws_session_error(credentials, 'AWS session token for profile %s is expired.')
 end
