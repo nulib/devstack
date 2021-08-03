@@ -24,7 +24,7 @@ services:
     - 8184:3000
     environment:
     - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=http://minio:9000/
+    - S3_ENDPOINT=http://minio:9002/
     - AWS_ACCESS_KEY_ID=minio
     - AWS_SECRET_ACCESS_KEY=minio123
     healthcheck:
@@ -176,7 +176,7 @@ services:
     image: avalonmediasystem/nginx:minio
     environment:
     - AVALON_DOMAIN=http://host.docker.internal:3000
-    - AVALON_STREAMING_BUCKET_URL=http://minio:9000/derivatives/
+    - AVALON_STREAMING_BUCKET_URL=http://minio:9002/derivatives/
     ports:
     - '8881:80'
   kibana:
@@ -244,11 +244,12 @@ services:
     - type: volume
       target: /var/run
     ports:
-      - 9002:9000
+      - 9002:9002
+      - 19002:19002
     environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
-    command: server /data
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server --address :9002 --console-address :19002 /data
     healthcheck:
       test:
       - CMD
@@ -256,7 +257,7 @@ services:
       - "--quiet"
       - "--tries=1"
       - "--spider"
-      - http://localhost:9000/minio/health/live
+      - http://localhost:9002/minio/health/live
       interval: 30s
       timeout: 5s
       retries: 3

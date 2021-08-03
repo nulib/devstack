@@ -26,13 +26,11 @@ services:
       target: /tmp
     - type: volume
       target: /var/run
-    links:
-    - minio:devbox.library.northwestern.edu
     ports:
     - 8183:3000
     environment:
     - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=https://devbox.library.northwestern.edu:9000/
+    - S3_ENDPOINT=https://devbox.library.northwestern.edu:9001/
     - AWS_ACCESS_KEY_ID=minio
     - AWS_SECRET_ACCESS_KEY=minio123
     - SSL_CERT=/home/node/.certs/public.crt
@@ -194,11 +192,9 @@ services:
     image: avalonmediasystem/nginx:minio
     environment:
     - AVALON_DOMAIN=http://host.docker.internal:3000
-    - AVALON_STREAMING_BUCKET_URL=https://devbox.library.northwestern.edu:9000/derivatives/
+    - AVALON_STREAMING_BUCKET_URL=https://devbox.library.northwestern.edu:9001/derivatives/
     ports:
     - '8880:80'
-    external_links:
-    - minio:devbox.library.northwestern.edu
   kibana:
     depends_on:
     - elasticsearch
@@ -270,18 +266,21 @@ services:
     - type: volume
       target: /var/run
     ports:
-      - 9001:9000
+      - 9001:9001
+      - 19001:19001
     environment:
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
-    command: server /data
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server --address devbox.library.northwestern.edu:9001 --console-address devbox.library.northwestern.edu:19001 /data
+    networks:
+      default:
+        aliases:
+          - devbox.library.northwestern.edu
     healthcheck:
       test:
       - CMD
       - curl
-      - --connect-to
-      - devbox.library.northwestern.edu:9000:localhost:9000
-      - https://devbox.library.northwestern.edu:9000/minio/health/live
+      - https://devbox.library.northwestern.edu:9001/minio/health/live
       interval: 30s
       timeout: 5s
       retries: 3
