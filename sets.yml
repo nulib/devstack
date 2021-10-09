@@ -10,6 +10,7 @@ arch:
   - db
   - elasticsearch
   - fedora
+  - goaws
   - minio
   - redis
   - solr
