@@ -7,10 +7,12 @@ gemfile do
 
   gem 'aws-sdk-core'
   gem 'aws-sdk-elasticsearchservice'
+  gem 'aws-sdk-ssm'
 end
 
 require 'aws-sdk-core'
 require 'aws-sdk-elasticsearchservice'
+require 'aws-sdk-ssm'
 
 def main
   ENV['AWS_PROFILE'] ||= ENV['AWS_DEFAULT_PROFILE']
@@ -43,8 +45,12 @@ def elasticsearch_endpoint(credentials)
   domain_name = es.list_domain_names.domain_names.find { |domain| domain.domain_name =~ /common-index/ }.domain_name
   endpoint = es.describe_elasticsearch_domain(domain_name: domain_name).domain_status.endpoint
   "https://#{endpoint}"
-rescue Aws::SSM::Errors::ExpiredTokenException
-  aws_session_error(credentials, 'AWS session token for profile %s is expired.')
+rescue Aws::Errors::ServiceError => err
+  if err.class.name =~ /::ExpiredTokenException$/
+    aws_session_error(credentials, 'AWS session token for profile %s is expired.')
+  else
+    raise err
+  end
 end
 
 def shared_credentials
