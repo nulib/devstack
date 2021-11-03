@@ -67,11 +67,11 @@ class DevStack
 
   def display_version
     Dir.chdir(root.to_s) do
-      cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse master', 'git rev-parse origin/master'].join(' && ')
+      cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse main', 'git rev-parse origin/main'].join(' && ')
       (local_rev, remote_rev) = `#{cmds}`.strip.split
       warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
       return if local_rev == remote_rev
-      remote_version = `git show origin/master:VERSION`.strip
+      remote_version = `git show origin/main:VERSION`.strip
       warn "\nVersion #{remote_version}, build #{remote_rev[0..7]} available."
       warn 'Run `devstack update` to upgrade'
     end
