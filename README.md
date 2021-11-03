@@ -10,6 +10,11 @@ $ cd devstack
 $ bin/devstack link
 ```
 
+Add the following line to your `~/.bashrc` or `~/.zshrc` file:
+```
+source $(devstack utils)
+```
+
 ## Use
 
 The `devstack` command is a thin wrapper around [`docker-compose`](https://docs.docker.com/compose/reference/), and accepts
@@ -36,6 +41,7 @@ all of the same subcommands, parameters, and arguments, with a few notable enhan
   well, resulting in a clean slate on the next `up`.
 * `devstack ps`: View the current state of running containers
 * `devstack update`: Upgrade to the latest revision of `devstack`
+* `source $(devstack utils)`: Install additional devstack utility functions in the current shell (best to add this command to `~/.bashrc` or `~/.zshrc`)
 
 ### Tips and Tricks
 

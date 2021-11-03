@@ -74,8 +74,9 @@ class DevStack
   def display_usage
     output = `#{docker_compose_cmd} 2>&1`.split(/\nCommands:\n/).last
     commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }.reject(&:empty?)]
-    commands['ports'] = 'Get a JSON report of running services and their ports'
+    commands['portmap'] = 'Get a JSON report of running services and their ports'
     commands['update'] = 'Pull the latest devstack command/configs from github'
+    commands['utils'] = 'Show the path to the devstack bash/zsh shell functions'
     commands['version'] = 'Show the devstack version information'
     warn %(Usage:\n  devstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
     Hash[commands.sort].each_pair do |command, description|
@@ -192,18 +193,6 @@ class DevStack
     display_version
   end
 
-  def export!
-    cmd = %{docker-compose -f #{compose_file} run -v #{Dir.pwd}:/external transfer export #{volumes.join(" ")}}
-    system(cmd)
-  end
-
-  def import!
-    input_file = context.argz.first
-    cmd = %{docker-compose -f #{compose_file} run -v #{File.expand_path(input_file)}:/external/#{File.basename(input_file)} transfer import #{input_file}}
-    puts cmd
-    system(cmd)
-  end
-
   def run!
     if (context.flags & ['-h', '--help']).any? || context.argv.empty? || (context.argv == ['help'] && context.argz.empty?)
       display_usage
@@ -213,16 +202,14 @@ class DevStack
     case context.argv.first
     when 'version', '-v', '--version'
       display_version
-    when 'export'
-      export!
-    when 'import'
-      import!
     when 'link'
       link!
     when 'portmap'
       portmap!
     when 'update'
       update!
+    when 'utils'
+      puts root.join('devstack-functions')
     else
       exec!
     end
