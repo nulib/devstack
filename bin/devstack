@@ -22,11 +22,11 @@ class DevStack
   end
 
   def known_services
-    @known_services ||= YAML.safe_load(File.read(compose_file))['services'].keys
+    @known_services ||= YAML.safe_load(File.read(compose_file), aliases: true)['services'].keys
   end
 
   def volumes
-    @volumes ||= YAML.safe_load(File.read(compose_file))['volumes'].keys
+    @volumes ||= YAML.safe_load(File.read(compose_file), aliases: true)['volumes'].keys
   end
 
   def interpret_arg(arg)
@@ -105,7 +105,7 @@ class DevStack
   end
 
   def dependencies
-    @dependencies ||= YAML.safe_load(File.read(root.join('sets.yml')))
+    @dependencies ||= YAML.safe_load(File.read(root.join('sets.yml')), aliases: true)
   end
 
   def root

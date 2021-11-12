@@ -14,20 +14,14 @@ arch:
   - minio
   - redis
   - solr
-donut:
-  - db
-  - elasticsearch
-  - fedora
-  - iiif
-  - minio
-  - redis
-  - solr
-glaze:
+dc: &dc
   - elasticproxy
   - elasticsearch
   - iiif
   - kibana
   - minio
+glaze: *dc
+fen: *dc
 meadow:
   - db
   - elasticsearch
@@ -35,3 +29,4 @@ meadow:
   - iiif
   - ldap
   - minio
+  - minio-checksum
