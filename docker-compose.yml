@@ -238,11 +238,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  sqs:
-    image: s12v/elasticmq
-    restart: unless-stopped
-    ports:
-      - 9325:9324
   minio:
     image: minio/minio:RELEASE.2021-08-25T00-41-18Z
     restart: unless-stopped
@@ -271,6 +266,8 @@ services:
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
+      MINIO_NOTIFY_WEBHOOK_ENABLE_checksum: on
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_checksum: http://minio-checksum:8000/fixity
     command: server --address devbox.library.northwestern.edu:9001 --console-address devbox.library.northwestern.edu:19001 /data
     networks:
       default:
@@ -284,20 +281,14 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  pgadmin:
-    image: dpage/pgadmin4
+  minio-checksum:
+    image: nulib/minio-checksum
     restart: unless-stopped
-    ports:
-    - 5051:80
+    read_only: true
     environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
-      PGADMIN_DEFAULT_PASSWORD: devstack
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    volumes:
-    - $HOME/.pgadmin:/var/lib/pgadmin
-    - $HOME/.ssh:/root/.ssh
-    - ./extras/pgadmin4/servers.json:/pgadmin4/servers.json
-    - ./extras/pgadmin4/pgpass:/pgpass
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      AWS_S3_ENDPOINT: https://devbox.library.northwestern.edu:9001/
   redis:
     image: redis:alpine
     restart: unless-stopped
@@ -349,13 +340,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  transfer:
-    image: nulib/devstack-transfer
-    restart: unless-stopped
-    read_only: true
-    volumes:
-      - fedora:/volumes/fedora
-      - db:/volumes/db
-      - minio:/volumes/minio
-      - solr:/volumes/solr
-      - es:/volumes/es

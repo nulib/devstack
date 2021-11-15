@@ -7,24 +7,26 @@ require 'socket'
 require 'time'
 require 'ostruct'
 require 'yaml'
-
 class DevStack
   attr_accessor :context
+
+  INTERNAL_COMPOSE = Gem::Dependency.new('', '>= 2.0.0-beta.4')
 
   def initialize(argv)
     ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
     @config_file = 'docker-compose.yml'
     @context = OpenStruct.new argv: argv, test_mode: false, flags: [], services: [], argz: []
+    init_docker_compose
     parse_command_line
     check_test_mode
   end
 
   def known_services
-    @known_services ||= YAML.safe_load(File.read(compose_file))['services'].keys
+    @known_services ||= YAML.safe_load(File.read(compose_file), aliases: true)['services'].keys
   end
 
   def volumes
-    @volumes ||= YAML.safe_load(File.read(compose_file))['volumes'].keys
+    @volumes ||= YAML.safe_load(File.read(compose_file), aliases: true)['volumes'].keys
   end
 
   def interpret_arg(arg)
@@ -49,11 +51,32 @@ class DevStack
     context.test_mode = true
   end
 
+  def init_docker_compose
+    compose = `docker info | grep compose:`
+    compose_version = compose.scan(/\d.+\d/).first
+    if INTERNAL_COMPOSE.match?('', Gem::Version.new(compose_version).to_s)
+      @docker_compose = ["docker", "compose"]
+    else
+      warn("You are running an older version of Docker that does not support `docker compose`. Please consider upgrading.")
+      @docker_compose = ["docker-compose"]
+    end
+  end
+
+  def docker_compose_cmd
+    @docker_compose.join(" ")
+  end
+
+  def docker_compose_array(args = [])
+    result = @docker_compose + args
+    result
+  end
+
   def display_usage
-    output = `docker-compose 2>&1`.split(/\nCommands:\n/).last
-    commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }]
-    commands['ports'] = 'Get a JSON report of running services and their ports'
+    output = `#{docker_compose_cmd} 2>&1`.split(/\nCommands:\n/).last
+    commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }.reject(&:empty?)]
+    commands['portmap'] = 'Get a JSON report of running services and their ports'
     commands['update'] = 'Pull the latest devstack command/configs from github'
+    commands['utils'] = 'Show the path to the devstack bash/zsh shell functions'
     commands['version'] = 'Show the devstack version information'
     warn %(Usage:\n  devstack [-d|--debug] [-t|--test] [COMMAND] [ARGS...]\n\nCommands:)
     Hash[commands.sort].each_pair do |command, description|
@@ -69,12 +92,12 @@ class DevStack
     Dir.chdir(root.to_s) do
       cmds = ['git fetch origin >/dev/null 2>&1', 'git rev-parse main', 'git rev-parse origin/main'].join(' && ')
       (local_rev, remote_rev) = `#{cmds}`.strip.split
-      warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `docker-compose version`
+      warn "devstack version #{version}, build #{local_rev[0..7]}\n" + `#{docker_compose_cmd} version`
       return if local_rev == remote_rev
       remote_version = `git show origin/main:VERSION`.strip
       warn "\nVersion #{remote_version}, build #{remote_rev[0..7]} available."
       warn 'Run `devstack update` to upgrade'
-    end
+    end 
   end
 
   def compose_file
@@ -82,7 +105,7 @@ class DevStack
   end
 
   def dependencies
-    @dependencies ||= YAML.safe_load(File.read(root.join('sets.yml')))
+    @dependencies ||= YAML.safe_load(File.read(root.join('sets.yml')), aliases: true)
   end
 
   def root
@@ -98,14 +121,14 @@ class DevStack
   end
 
   def cmdline
-    (['docker-compose', '-f', compose_file] + context.argv + context.services + context.argz).tap do |result|
+    docker_compose_array(['-f', compose_file] + context.argv + context.services + context.argz).tap do |result|
       result << '-v' if context.test_mode && (['down', '-v'] & context.argv == ['down'])
     end
   end
 
   def trap_cmd
     return [] unless ['up', '-d'] & context.argv == ['up']
-    ['docker-compose', '-f', compose_file, 'down'].tap do |result|
+    docker_compose_array(['-f', compose_file, 'down']).tap do |result|
       result << '-v' if context.test_mode
     end
   end
@@ -164,22 +187,10 @@ class DevStack
   def update!
     Dir.chdir(root.to_s) do
       `git pull origin`
-      `docker-compose -f #{compose_file} pull`
+      `#{docker_compose_cmd} -f #{compose_file} pull`
       link!
     end
     display_version
-  end
-
-  def export!
-    cmd = %{docker-compose -f #{compose_file} run -v #{Dir.pwd}:/external transfer export #{volumes.join(" ")}}
-    system(cmd)
-  end
-
-  def import!
-    input_file = context.argz.first
-    cmd = %{docker-compose -f #{compose_file} run -v #{File.expand_path(input_file)}:/external/#{File.basename(input_file)} transfer import #{input_file}}
-    puts cmd
-    system(cmd)
   end
 
   def run!
@@ -191,16 +202,14 @@ class DevStack
     case context.argv.first
     when 'version', '-v', '--version'
       display_version
-    when 'export'
-      export!
-    when 'import'
-      import!
     when 'link'
       link!
     when 'portmap'
       portmap!
     when 'update'
       update!
+    when 'utils'
+      puts root.join('devstack-functions')
     else
       exec!
     end

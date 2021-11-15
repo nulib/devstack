@@ -1,0 +1,62 @@
+function ecs-exec() {
+  service=$1
+  shift
+
+  case $service in
+    arch-* | avr-*)
+      cluster=${service%%-*}
+      container=$cluster
+      command="sudo -u app -E -s HOME=/home/app bundle exec rails c"
+      ;;
+    meadow)
+      cluster="meadow"
+      container=$cluster
+      command="bin/meadow remote"
+      ;;
+    solr | zookeeper-*)
+      cluster="solrcloud"
+      container=${service%%-*}
+      command="/bin/bash"
+      ;;
+    fcrepo)
+      cluster="fcrepo"
+      container=$cluster
+      command="/bin/bash"
+      ;;
+    *)
+      cluster="default"
+      container=$cluster
+      command="/bin/bash"
+      ;;
+  esac
+
+  if [[ "$@" != "" ]]; then
+    command="$@"
+  fi
+
+  task_id=$(aws ecs list-tasks --cluster $cluster --service $service | jq -r '.taskArns[0] | split("/") | last')
+  echo "Running \`${command}\` on task ${task_id}"
+  aws ecs execute-command --cluster ${cluster} --container ${container} --interactive --command "${command}" --task ${task_id}
+}
+
+function ecr-login() {
+  AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  AWS_REGION=${AWS_REGION:=us-east-1}
+  ECR_REPO=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+  aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+}
+
+function ecr-push() {
+  AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  AWS_REGION=${AWS_REGION:=us-east-1}
+  ECR_REPO=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+  docker tag $1 ${ECR_REPO}/$2
+  docker push ${ECR_REPO}/$2
+  docker image rm ${ECR_REPO}/$2
+}
+
+function tfselect() {
+  export AWS_PROFILE=$1-admin
+  aws-adfs login --profile $AWS_PROFILE
+  terraform workspace select $1 || terraform workspace new $1
+}
