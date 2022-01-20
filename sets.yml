@@ -1,32 +1,36 @@
 ---
 avr:
-  - db
-  - fedora
-  - goaws
-  - hls
-  - redis
-  - solr
+  services:
+    - db
+    - fedora
+    - goaws
+    - hls
+    - redis
+    - solr
 arch:
-  - db
-  - elasticsearch
-  - fedora
-  - goaws
-  - minio
-  - redis
-  - solr
+  services:
+    - db
+    - elasticsearch
+    - fedora
+    - goaws
+    - localstack
+    - redis
+    - solr
 dc: &dc
-  - elasticproxy
-  - elasticsearch
-  - iiif
-  - kibana
-  - minio
+  services:
+    - elasticproxy
+    - elasticsearch
+    - iiif
+    - kibana
+    - localstack
 glaze: *dc
 fen: *dc
 meadow:
-  - db
-  - elasticsearch
-  - goaws
-  - iiif
-  - ldap
-  - minio
-  - minio-checksum
+  services:
+    - db
+    - elasticsearch
+    - iiif
+    - ldap
+    - localstack
+  resources:
+    - digester

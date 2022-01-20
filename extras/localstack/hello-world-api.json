@@ -1,0 +1,75 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Hello World",
+    "description": "A Hello World API.",
+    "version": "1.0"
+  },
+  "paths": {
+    "/hello": {
+      "get": {
+        "operationId": "GET HTTP",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref" : "#/components/schemas/Empty"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws",
+          "httpMethod": "POST",
+          "uri": "arn:aws:lambda:us-east-1:000000000000:function:hello-world",
+          "payloadFormatVersion": 2.0
+        }
+      }
+    }
+  },
+  "x-amazon-apigateway-cors": {
+    "allowOrigins": [
+      "*"
+    ],
+    "allowMethods": [
+      "GET",
+      "OPTIONS",
+      "POST"
+    ],
+    "allowHeaders": [
+      "x-amzm-header",
+      "x-apigateway-header",
+      "x-api-key",
+      "authorization",
+      "x-amz-date",
+      "content-type"
+    ]
+  },
+  "components": {
+    "schemas": {
+      "Empty": {
+        "type": "object"
+      }
+    }
+  }
+}
+
