@@ -4,14 +4,13 @@ volumes:
   fedora:
   db:
   es:
-  goaws:
   ldap:
-  minio:
+  localstack:
   solr:
 services:
   iiif:
     depends_on:
-    - minio
+    - localstack
     image: nulib/iiif-express
     restart: unless-stopped
     read_only: true
@@ -29,12 +28,12 @@ services:
     ports:
     - 8183:3000
     environment:
-    - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=https://devbox.library.northwestern.edu:9001/
-    - AWS_ACCESS_KEY_ID=minio
-    - AWS_SECRET_ACCESS_KEY=minio123
-    - SSL_CERT=/home/node/.certs/public.crt
-    - SSL_KEY=/home/node/.certs/private.key
+      TIFF_BUCKET: dev-pyramids
+      S3_ENDPOINT: http://localstack:4566/
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      SSL_CERT: /home/node/.certs/public.crt
+      SSL_KEY: /home/node/.certs/private.key
     healthcheck:
       test:
       - CMD
@@ -67,8 +66,10 @@ services:
     - 5433:5432
     command: postgres -c max_connections=300
     healthcheck:
-      test: "CMD echo 'SELECT 1' | PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker
-  --dbname docker --quiet --no-align --tuples-only"
+      test: |
+        CMD echo 'SELECT 1' | \
+          PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker \
+          --dbname docker --quiet --no-align --tuples-only"
       interval: 30s
       timeout: 5s
       retries: 3
@@ -167,32 +168,13 @@ services:
       target: /var/run
     ports:
     - 8984:8080
-  goaws:
-    image: nulib/goaws
-    restart: unless-stopped
-    ports:
-    - 4101:4101
-    volumes:
-    - goaws:/data
-    - ./extras/goaws/dev.yml:/conf/goaws.yaml
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - -O
-      - "-"
-      - http://localhost:4100/?Action=ListQueues
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    command: --persist /data/goaws.yaml
   hls:
     depends_on:
-    - minio
+    - localstack
     image: avalonmediasystem/nginx:minio
     environment:
     - AVALON_DOMAIN=http://host.docker.internal:3000
-    - AVALON_STREAMING_BUCKET_URL=https://devbox.library.northwestern.edu:9001/derivatives/
+    - AVALON_STREAMING_BUCKET_URL=https://devbox.library.northwestern.edu:4566/derivatives/
     ports:
     - '8880:80'
   kibana:
@@ -238,57 +220,33 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  minio:
-    image: minio/minio:RELEASE.2021-08-25T00-41-18Z
+  localstack:
+    image: localstack/localstack
     restart: unless-stopped
-    read_only: true
     volumes:
-    - type: volume
-      source: minio
-      target: /data
-    - type: volume
-      target: /root/.minio
-    - type: bind
-      source: $HOME/.devbox_cert/devbox.library.full.pem
-      target: /root/.minio/certs/public.crt
-    - type: bind
-      source: $HOME/.devbox_cert/devbox.library.key.pem
-      target: /root/.minio/certs/private.key
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
+      - localstack:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./extras/localstack/aws:/root/.aws:ro
+      - ./extras/localstack/scripts:/tmp/scripts:ro
     ports:
-      - 9001:9001
-      - 19001:19001
+      - 4566:4566
+      - 4571:4571
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
-      MINIO_NOTIFY_WEBHOOK_ENABLE_checksum: on
-      MINIO_NOTIFY_WEBHOOK_ENDPOINT_checksum: http://minio-checksum:8000/fixity
-    command: server --address devbox.library.northwestern.edu:9001 --console-address devbox.library.northwestern.edu:19001 /data
-    networks:
-      default:
-        aliases:
-          - devbox.library.northwestern.edu
+      DATA_DIR: /data
+      DNS_ADDRESS: 127.0.0.1
+      DOCKER_HOST: unix:///var/run/docker.sock
+      EDGE_PORT: 4566
+      EDGE_PORT_HTTP: 4566
+      LAMBDA_DOCKER_NETWORK: devstack_default
+      LAMBDA_EXECUTOR: docker-reuse
+      LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY:-}
     healthcheck:
-      test:
-      - CMD
-      - curl
-      - https://devbox.library.northwestern.edu:9001/minio/health/live
+      test: 
+        - CMD
+        - /usr/local/bin/healthcheck.sh
       interval: 30s
-      timeout: 5s
-      retries: 3
-  minio-checksum:
-    image: nulib/minio-checksum
-    restart: unless-stopped
-    read_only: true
-    environment:
-      AWS_ACCESS_KEY_ID: minio
-      AWS_SECRET_ACCESS_KEY: minio123
-      AWS_S3_ENDPOINT: https://devbox.library.northwestern.edu:9001/
+      timeout: 30s
+      retries: 5
   redis:
     image: redis:alpine
     restart: unless-stopped

@@ -60,3 +60,7 @@ function tfselect() {
   aws-adfs login --profile $AWS_PROFILE
   terraform workspace select $1 || terraform workspace new $1
 }
+
+function awslocal() {
+  aws --endpoint https://localhost.localstack.cloud:4566/ $@
+}

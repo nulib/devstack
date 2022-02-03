@@ -5,8 +5,11 @@ require 'json'
 require 'pathname'
 require 'socket'
 require 'time'
+require 'open-uri'
 require 'ostruct'
+require 'uri'
 require 'yaml'
+
 class DevStack
   attr_accessor :context
 
@@ -15,8 +18,7 @@ class DevStack
   def initialize(argv)
     ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
     @config_file = 'docker-compose.yml'
-    @context = OpenStruct.new argv: argv, test_mode: false, flags: [], services: [], argz: []
-    init_docker_compose
+    @context = OpenStruct.new applications: [], argv: argv, test_mode: false, flags: [], services: [], argz: []
     parse_command_line
     check_test_mode
   end
@@ -30,7 +32,14 @@ class DevStack
   end
 
   def interpret_arg(arg)
-    expanded = known_services & (dependencies[arg] || [arg])
+    if dependencies.key?(arg)
+      @context.applications << arg
+      arg_services = dependencies[arg].fetch('services', [arg])
+    else
+      arg_services = [arg]
+    end
+    arg_services = dependencies.dig(arg, 'services') || [arg]
+    expanded = known_services & arg_services
     if expanded.empty?
       context.argz << arg
     else
@@ -63,10 +72,12 @@ class DevStack
   end
 
   def docker_compose_cmd
+    init_docker_compose if @docker_compose.nil?
     @docker_compose.join(" ")
   end
 
   def docker_compose_array(args = [])
+    init_docker_compose if @docker_compose.nil?
     result = @docker_compose + args
     result
   end
@@ -122,26 +133,50 @@ class DevStack
 
   def cmdline
     docker_compose_array(['-f', compose_file] + context.argv + context.services + context.argz).tap do |result|
-      result << '-v' if context.test_mode && (['down', '-v'] & context.argv == ['down'])
+      if context.argv[0] == 'up' and not context.argv.index('-d')
+        result.insert(result.index('up') + 1, '-d')
+      end
     end
   end
 
-  def trap_cmd
-    return [] unless ['up', '-d'] & context.argv == ['up']
-    docker_compose_array(['-f', compose_file, 'down']).tap do |result|
-      result << '-v' if context.test_mode
+  def cleanup_extra_containers
+    network = ENV['COMPOSE_PROJECT_NAME'] + "_default"
+    status, headers, containers = docker(request(:get, "/containers/json", {filters: {network: [network]}}))
+    containers.select! do |container|
+      container["Names"][0] =~ /^\/#{ENV['COMPOSE_PROJECT_NAME']}-localstack-\d+_/
+    end
+
+    return if containers.length == 0
+
+    $stderr.puts "[+] Pruning extra containers"
+    containers.each do |container|
+      $stderr.print " ⠿ Container #{container["Names"][0].sub(/^\//, '')}... "
+      docker(request(:post, %{/containers/#{container["Id"]}/stop}))
+      docker(request(:delete, %{/containers/#{container["Id"]}}))
+      $stderr.puts "Removed"
+    end
+  end
+
+  def pre_exec
+    case context.argv[0]
+    when 'down' then cleanup_extra_containers()
+    end
+  end
+
+  def post_exec
+    case context.argv[0]
+    when 'up' then provision!
     end
   end
 
   def exec!
     warn cmdline.inspect if context.flags.include?('-d')
     begin
+      pre_exec()
       Kernel.system(*cmdline)
+      post_exec()
     rescue Interrupt # rubocop:disable Lint/HandleExceptions
       # Let it go
-    ensure
-      final_cmd = trap_cmd
-      Kernel.system(*final_cmd) unless final_cmd.empty?
     end
   end
 
@@ -174,14 +209,56 @@ class DevStack
 
   def portmap!
     label = ENV['COMPOSE_PROJECT_NAME']
-    request = %{/containers/json?filters={"label":["com.docker.compose.project=#{label}"]}}
-    status, headers, containers = docker_sock(request)
-    result = containers.inject({}) do |r, c| 
+    result = running_containers.inject({}) do |r, c| 
       name = c['Names'].find { |n| n.include?(label) }.gsub(%r{^/#{label}_(.+)_\d+$},'\1')
       r[name] = c['Ports'].inject({}) { |h, p| h[p['PrivatePort']] = p['PublicPort']; h }.compact 
       r
     end
     puts result.to_json
+  end
+
+  def localstack_ready(port)
+    result = URI.open("https://localhost.localstack.cloud:#{port}/health")
+    return false unless result.status[0] == '200'
+    return false unless result.meta['content-type'] == 'application/json'
+    content = JSON.parse(result.read)
+    return false unless content.dig('features', 'initScripts') == 'initialized'
+    true
+  rescue
+    false
+  end
+
+  def provision!
+    return if @context.applications.empty?
+    port = @context.test_mode ? 4568 : 4566
+    warn "Waiting for localstack to become ready"
+    while !localstack_ready(port)
+      sleep 1
+    end
+
+    warn "Provisioning localstack for #{@context.applications.join(', ')}"
+
+    resources = @context.applications.reduce(['main']) do |list, app|
+      list + dependencies[app].fetch('resources', [])
+    end
+    resources.uniq!
+
+    tf_dir = root.join('.terraform')
+    FileUtils.mkdir_p(tf_dir)
+    FileUtils.rm_f(tf_dir.join("*"))
+    FileUtils.cp_r(root.join('extras/localstack/terraform/lambdas'), tf_dir)
+    FileUtils.cp_r(root.join('extras/localstack/terraform/modules'), tf_dir)
+    resources.each do |manifest|
+      FileUtils.cp(root.join("extras/localstack/terraform/#{manifest}.tf"), tf_dir)
+    end
+
+    Dir.chdir(tf_dir) do
+      workspace = @context.test_mode ? 'test' : 'dev'
+      action = %x(terraform workspace list) =~ /\b#{workspace}\b/ ? 'select' : 'new'
+      system("terraform init")
+      system("terraform workspace #{action} #{workspace}")
+      system("terraform apply -auto-approve -var localstack_endpoint=https://localhost.localstack.cloud:#{port}")
+    end
   end
 
   def update!
@@ -206,6 +283,8 @@ class DevStack
       link!
     when 'portmap'
       portmap!
+    when 'provision'
+      provision!
     when 'update'
       update!
     when 'utils'
@@ -217,9 +296,24 @@ class DevStack
 
   private
 
-  def docker_sock(request)
+  def running_containers
+    label = ENV['COMPOSE_PROJECT_NAME']
+    filter = {label: ["com.docker.compose.project=#{label}"]}
+    status, headers, containers = docker(request(:get, "/containers/json", {filters: filter}))
+    containers
+  end
+
+  def request(method, path, params = {}, body = "")
+    param_strings = params.map do |k, v|
+      v = v.to_json unless v.kind_of?(String)
+      "#{k}=#{URI.encode_www_form_component(v)}"
+    end
+    "#{method.to_s.upcase} #{path}?#{param_strings.join("&")} HTTP/1.0\r\n\r\n#{body}"
+  end
+
+  def docker(content)
     UNIXSocket.open('/var/run/docker.sock') do |socket|
-      socket.send("GET #{request} HTTP/1.0\r\n\r\n", 0)
+      socket.send(content, 0)
       headers, body = socket.read.split(/\r\n\r\n/,2)
       headers = headers.lines.collect(&:chomp)
       status = headers.shift
@@ -228,7 +322,13 @@ class DevStack
         acc[key.downcase] = value
         acc
       end
-      [status, headers, JSON.parse(body)]
+
+      case headers["content-type"]
+      when "application/json" then body = JSON.parse(body)
+      when /yaml$/ then body = YAML.load(body)
+      end
+
+      [status, headers, body]
     end
   end
 end

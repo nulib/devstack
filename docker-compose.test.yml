@@ -1,17 +1,9 @@
 ---
 version: '3.4'
-volumes:
-  fedora_test:
-  db_test:
-  es_test:
-  goaws_test:
-  ldap_test:
-  minio_test:
-  solr_test:
 services:
   iiif:
     depends_on:
-    - minio
+    - localstack
     image: nulib/iiif-express
     restart: unless-stopped
     read_only: true
@@ -24,9 +16,9 @@ services:
     - 8184:3000
     environment:
     - TIFF_BUCKET=dev-pyramids
-    - S3_ENDPOINT=http://minio:9002/
-    - AWS_ACCESS_KEY_ID=minio
-    - AWS_SECRET_ACCESS_KEY=minio123
+    - S3_ENDPOINT=http://localstack:4566/
+    - AWS_ACCESS_KEY_ID=fake
+    - AWS_SECRET_ACCESS_KEY=fake
     healthcheck:
       test:
       - CMD
@@ -44,7 +36,6 @@ services:
     read_only: true
     volumes:
     - type: volume
-      source: db_test
       target: /data
     - type: volume
       target: /tmp
@@ -60,8 +51,10 @@ services:
     - 5434:5432
     command: postgres -c max_connections=300
     healthcheck:
-      test: "CMD echo 'SELECT 1' | PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker
-  --dbname docker --quiet --no-align --tuples-only"
+      test: |
+        CMD echo 'SELECT 1' | \
+          PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker \
+          --dbname docker --quiet --no-align --tuples-only
       interval: 30s
       timeout: 5s
       retries: 3
@@ -105,7 +98,6 @@ services:
     read_only: true
     volumes:
     - type: volume
-      source: es_test
       target: /bitnami/elasticsearch/data
     - type: volume
       target: /tmp
@@ -139,7 +131,6 @@ services:
     read_only: true
     volumes:
     - type: volume
-      source: fedora_test
       target: /data
     - type: volume
       target: /tmp
@@ -151,32 +142,13 @@ services:
       target: /var/run
     ports:
     - 8986:8080
-  goaws:
-    image: nulib/goaws
-    restart: unless-stopped
-    ports:
-    - 4102:4102
-    volumes:
-    - goaws_test:/data
-    - ./extras/goaws/test.yml:/conf/goaws.yaml
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - -O
-      - "-"
-      - http://localhost:4100/?Action=ListQueues
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    command: --persist /data/goaws.yaml
   hls:
     depends_on:
-    - minio
+    - localstack
     image: avalonmediasystem/nginx:minio
     environment:
     - AVALON_DOMAIN=http://host.docker.internal:3000
-    - AVALON_STREAMING_BUCKET_URL=http://minio:9002/derivatives/
+    - AVALON_STREAMING_BUCKET_URL=http://localstack:4566/derivatives/
     ports:
     - '8881:80'
   kibana:
@@ -200,7 +172,6 @@ services:
     restart: unless-stopped
     volumes:
       - type: volume
-        source: ldap_test
         target: /var/lib/samba
     ports:
       - 391:389
@@ -222,50 +193,33 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  minio:
-    image: minio/minio:RELEASE.2021-08-25T00-41-18Z
+  localstack:
+    image: localstack/localstack
     restart: unless-stopped
-    read_only: true
     volumes:
-    - type: volume
-      source: minio_test
-      target: /data
-    - type: volume
-      target: /root/.minio
-    - type: volume
-      target: /tmp
-    - type: volume
-      target: /var/log
-    - type: volume
-      target: /var/run
+      - type: volume
+        target: /data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./extras/localstack/aws:/root/.aws:ro
+      - ./extras/localstack/scripts:/tmp/scripts:ro
     ports:
-      - 9002:9002
-      - 19002:19002
+      - 4568:4566
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
-      MINIO_NOTIFY_WEBHOOK_ENABLE_checksum: on
-      MINIO_NOTIFY_WEBHOOK_ENDPOINT_checksum: http://minio-checksum:8000/fixity
-    command: server --address :9002 --console-address :19002 /data
+      DNS_ADDRESS: 127.0.0.1
+      EDGE_PORT: 4566
+      EDGE_PORT_HTTP: 4566
+      DATA_DIR: /data
+      DOCKER_HOST: unix:///var/run/docker.sock
+      LAMBDA_DOCKER_NETWORK: devstack_test_default
+      LAMBDA_EXECUTOR: local
+      LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY:-}
     healthcheck:
-      test:
-      - CMD
-      - wget
-      - "--quiet"
-      - "--tries=1"
-      - "--spider"
-      - http://localhost:9002/minio/health/live
+      test: 
+        - CMD
+        - /healthcheck.sh
       interval: 30s
-      timeout: 5s
-      retries: 3
-  minio-checksum:
-    image: nulib/minio-checksum
-    restart: unless-stopped
-    read_only: true
-    environment:
-      AWS_ACCESS_KEY_ID: minio
-      AWS_SECRET_ACCESS_KEY: minio123
-      AWS_S3_ENDPOINT: http://minio:9002/
+      timeout: 30s
+      retries: 5
   redis:
     image: redis:alpine
     restart: unless-stopped
@@ -293,7 +247,6 @@ services:
     read_only: true
     volumes:
     - type: volume
-      source: solr_test
       target: /opt/solr/server/solr
     - type: volume
       target: /opt/solr/server
@@ -317,3 +270,15 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  sslproxy:
+    image: nginx
+    volumes:
+    - type: bind
+      source: ./extras/sslproxy/proxy.conf
+      target: /etc/nginx/conf.d/default.conf
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.full.pem
+      target: /etc/nginx/cert.crt
+    - type: bind
+      source: $HOME/.devbox_cert/devbox.library.key.pem
+      target: /etc/nginx/cert.key
