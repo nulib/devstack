@@ -69,7 +69,7 @@ services:
       test: |
         CMD echo 'SELECT 1' | \
           PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker \
-          --dbname docker --quiet --no-align --tuples-only"
+          --dbname docker --quiet --no-align --tuples-only
       interval: 30s
       timeout: 5s
       retries: 3
@@ -243,7 +243,7 @@ services:
     healthcheck:
       test: 
         - CMD
-        - /usr/local/bin/healthcheck.sh
+        - /tmp/scripts/healthcheck.sh
       interval: 30s
       timeout: 30s
       retries: 5
