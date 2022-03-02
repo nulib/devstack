@@ -228,11 +228,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./extras/localstack/aws:/root/.aws:ro
       - ./extras/localstack/scripts:/tmp/scripts:ro
+      - "${TMPDIR:-/tmp}/localstack_dev:/tmp/localstack"
     ports:
-      - 4566:4566
-      - 4571:4571
+      - 127.0.0.1:53:53
+      - 127.0.0.1:53:53/udp
+      - 127.0.0.1:443:443
+      - 127.0.0.1:4510-4559:4510-4559
+      - 127.0.0.1:4566:4566
     environment:
       DATA_DIR: /data
+      DEBUG: ${LOCALSTACK_DEBUG:-}
       DNS_ADDRESS: 127.0.0.1
       DOCKER_HOST: unix:///var/run/docker.sock
       EDGE_PORT: 4566
@@ -240,6 +245,7 @@ services:
       LAMBDA_DOCKER_NETWORK: devstack_default
       LAMBDA_EXECUTOR: docker-reuse
       LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY:-}
+      LS_LOG: ${LS_LOG:-}
     healthcheck:
       test: 
         - CMD
