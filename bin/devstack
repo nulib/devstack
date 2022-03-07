@@ -85,7 +85,9 @@ class DevStack
   def display_usage
     output = `#{docker_compose_cmd} 2>&1`.split(/\nCommands:\n/).last
     commands = Hash[output.lines.collect { |line| line.strip.split(/\s+/, 2) }.reject(&:empty?)]
+    commands['branch'] = 'Show or change the current devstack working tree branch (for development)'
     commands['portmap'] = 'Get a JSON report of running services and their ports'
+    commands['provision'] = 'Use terraform to provision `localstack` for the specified application'
     commands['update'] = 'Pull the latest devstack command/configs from github'
     commands['utils'] = 'Show the path to the devstack bash/zsh shell functions'
     commands['version'] = 'Show the devstack version information'
@@ -261,6 +263,21 @@ class DevStack
     end
   end
 
+  def branch!
+    Dir.chdir(root.to_s) do
+      `git fetch origin`
+      if context.argz[0]
+        if `git status --porcelain`.empty?
+          system("git switch #{context.argz[0]}")
+        else
+          warn "Cannot switch branches. Current working tree is not clean."
+        end
+      else
+        system("git branch")
+      end
+    end
+  end
+
   def update!
     Dir.chdir(root.to_s) do
       `git pull origin`
@@ -279,6 +296,8 @@ class DevStack
     case context.argv.first
     when 'version', '-v', '--version'
       display_version
+    when 'branch'
+      branch!
     when 'link'
       link!
     when 'portmap'

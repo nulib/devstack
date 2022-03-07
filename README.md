@@ -28,6 +28,8 @@ all of the same subcommands, parameters, and arguments, with a few notable enhan
 
 ### Cheat Sheet
 
+#### `devstack` Commands
+
 * `devstack -t [rest-of-command]` will run `devstack` in test mode. That means:
   * All services run on test ports instead of dev ports (e.g., `solr` on `8985` instead of `8983`)
   * The `COMPOSE_PROJECT_NAME` will have `_test` appended (e.g., the default container names will be 
@@ -39,9 +41,42 @@ all of the same subcommands, parameters, and arguments, with a few notable enhan
   all running services). `-f` behaves the way it does for the `tail` command.
 * `devstack down [-v]`: Bring down the stack. Adding `-v` will destroy the stack's persistent data volumes as
   well, resulting in a clean slate on the next `up`.
+* `devstack provision [APPLICATION]`: Use terraform to provision `localstack` for the specified application.
 * `devstack ps`: View the current state of running containers
 * `devstack update`: Upgrade to the latest revision of `devstack`
-* `source $(devstack utils)`: Install additional devstack utility functions in the current shell (best to add this command to `~/.bashrc` or `~/.zshrc`)
+* `devstack branch [BRANCH]`: Switch devstack to `BRANCH` (for development and testing). If `BRANCH` is not 
+  specified, list existing branches.
+* `source $(devstack utils)`: Install additional devstack utility functions in the current shell
+
+#### Other Utilities and Functions
+
+##### Tool Management
+
+* `asdf-install-plugins`: Install all plugins needed for the current working directory's application 
+  environment
+* `asdf-install-npm`: Install the correct `npm` version for the current working directory's application
+  environment
+
+##### Remote Service Access
+
+* `es-proxy`: Run an Elasticsearch proxy to access the staging or production index, as well as a Kibana front-end
+* `ecr-login`: Log into the AWS-hosted Docker repository (Elastic Container Repository) using profile credentials
+* `ecr-push [IMAGE] [NAME]`: Push a local Docker image to the ECR repository as `NAME`
+* `ecs-exec [SERVICE]`: Attach to a running AWS service container. Valid values for `SERVICE` are:
+  * `arch-webapp`
+  * `arch-worker`
+  * `avr-weball`
+  * `avr-worker`
+  * `fcrepo`
+  * `meadow`
+  * `solr`
+  * `zookeeper`
+
+##### Convenience Scripts
+
+* `awslocal`: Command wrapper to run `aws` CLI commands against the running localstack container
+* `tfselect [ENVIRONMENT]`: Set `AWS_PROFILE`, log in, and switch the current Terraform
+  workspace to `ENVIRONMENT`.
 
 ### Tips and Tricks
 
