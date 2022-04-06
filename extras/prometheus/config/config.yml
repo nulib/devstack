@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+  external_labels:
+    monitor: "elixir_app"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "meadow"
+    scheme: "https"
+    static_configs:
+      - targets: ["host.internal.:3001"]
+      - targets: ["devbox.library.northwestern.edu:3001"]
+    tls_config:
+      insecure_skip_verify: true

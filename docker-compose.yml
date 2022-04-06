@@ -2,10 +2,12 @@
 version: '3.4'
 volumes:
   fedora:
+  grafana:
   db:
   es:
   ldap:
   localstack:
+  prometheus:
   solr:
 services:
   iiif:
@@ -168,6 +170,16 @@ services:
       target: /var/run
     ports:
     - 8984:8080
+  grafana:
+    depends_on:
+    - prometheus
+    image: grafana/grafana-enterprise
+    volumes:
+      - grafana:/var/lib/grafana/
+    env_file:
+      - ./extras/grafana/.env
+    ports:
+    - 3009:3000
   hls:
     depends_on:
     - localstack
@@ -253,6 +265,21 @@ services:
       interval: 30s
       timeout: 30s
       retries: 5
+  prometheus:
+    image: prom/prometheus
+    user: root
+    volumes:
+      - ./extras/prometheus/config/:/etc/prometheus/
+      - ./extras/prometheus/docker-entrypoint.sh:/docker-entrypoint.sh
+      - prometheus:/prometheus
+    entrypoint: /docker-entrypoint.sh
+    command:
+      - '--config.file=/etc/prometheus/config.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+    - 9090:9090
   redis:
     image: redis:alpine
     restart: unless-stopped
