@@ -257,7 +257,7 @@ class DevStack
     Dir.chdir(tf_dir) do
       workspace = @context.test_mode ? 'test' : 'dev'
       action = %x(terraform workspace list) =~ /\b#{workspace}\b/ ? 'select' : 'new'
-      system("terraform init")
+      system("terraform init -upgrade")
       system("terraform workspace #{action} #{workspace}")
       system("terraform apply -auto-approve -var localstack_endpoint=https://localhost.localstack.cloud:#{port}")
     end
