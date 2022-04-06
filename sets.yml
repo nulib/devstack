@@ -32,5 +32,3 @@ meadow:
     - iiif
     - ldap
     - localstack
-  resources:
-    - digester
