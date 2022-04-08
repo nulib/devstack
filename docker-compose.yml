@@ -16,17 +16,17 @@ services:
     read_only: true
     volumes:
     - type: bind
-      source: $HOME/.devbox_cert/devbox.library.full.pem
+      source: $HOME/.devbox_cert/dev.rdc.wildcard.full.pem
       target: /home/node/.certs/public.crt
     - type: bind
-      source: $HOME/.devbox_cert/devbox.library.key.pem
+      source: $HOME/.devbox_cert/dev.rdc.wildcard.key.pem
       target: /home/node/.certs/private.key
     - type: volume
       target: /tmp
     - type: volume
       target: /var/run
     ports:
-    - 8183:3000
+    - 8183:8183
     environment:
       TIFF_BUCKET: dev-pyramids
       S3_ENDPOINT: http://localstack:4566/
@@ -34,16 +34,19 @@ services:
       AWS_SECRET_ACCESS_KEY: minio123
       SSL_CERT: /home/node/.certs/public.crt
       SSL_KEY: /home/node/.certs/private.key
+      PORT: 8183
     healthcheck:
       test:
       - CMD
       - curl
-      - --connect-to
-      - devbox.library.northwestern.edu:3000:localhost:3000
-      - https://devbox.library.northwestern.edu:3000/iiif/2
+      - https://iiif.dev.rdc.library.northwestern.edu:8183/iiif/2
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      default:
+        aliases:
+          - iiif.dev.rdc.library.northwestern.edu
   db:
     image: postgres:10-alpine
     restart: unless-stopped
@@ -83,10 +86,10 @@ services:
     - type: volume
       target: /home/node
     - type: bind
-      source: $HOME/.devbox_cert/devbox.library.full.pem
+      source: $HOME/.devbox_cert/dev.rdc.wildcard.full.pem
       target: /home/node/.certs/public.crt
     - type: bind
-      source: $HOME/.devbox_cert/devbox.library.key.pem
+      source: $HOME/.devbox_cert/dev.rdc.wildcard.key.pem
       target: /home/node/.certs/private.key
     - type: volume
       target: /tmp
@@ -96,6 +99,10 @@ services:
       target: /var/run
     ports:
     - 3334:3334
+    networks:
+      default:
+        aliases:
+          - dcapi.dev.rdc.library.northwestern.edu
     environment:
       UPSTREAM: http://elasticsearch:9200/
       AWS_ACCESS_KEY_ID: fake_key_id
@@ -110,9 +117,7 @@ services:
       test:
       - CMD
       - curl
-      - --connect-to
-      - devbox.library.northwestern.edu:3334:localhost:3334
-      - https://devbox.library.northwestern.edu:3334/auth/whoami
+      - https://dcapi.dev.rdc.library.northwestern.edu:3334/auth/whoami
       interval: 30s
       timeout: 5s
       retries: 3
