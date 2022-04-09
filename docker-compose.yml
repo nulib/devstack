@@ -243,6 +243,7 @@ services:
     environment:
       DATA_DIR: /data
       DEBUG: ${LOCALSTACK_DEBUG:-}
+      DISABLE_CORS_CHECKS: 1
       DNS_ADDRESS: 127.0.0.1
       DOCKER_HOST: unix:///var/run/docker.sock
       EDGE_PORT: 4566
