@@ -221,12 +221,24 @@ class DevStack
 
   def localstack_ready(port)
     result = URI.open("https://localhost.localstack.cloud:#{port}/health")
-    return false unless result.status[0] == '200'
-    return false unless result.meta['content-type'] == 'application/json'
+    unless result.status[0] == '200'
+      warn "Not Ready (Status: #{result.status[0]})"
+      return false 
+    end
+
+    unless result.meta['content-type'] == 'application/json'
+      warn "Not Ready (Content-Type: #{result.meta['content-type']})"
+      return false 
+    end
+
     content = JSON.parse(result.read)
-    return false unless content['features'].length > 0 and content['features'].values.all? { |v| v == 'initialized' }
+    unless content['features'].length > 0 and content['features'].values.all? { |v| v == 'initialized' }
+      warn "Not Ready (Features: #{content['features'].to_json})"
+      return false
+    end
     true
-  rescue
+  rescue StandardError => err
+    warn "Not Ready (Error: #{err.message})"
     false
   end
 
