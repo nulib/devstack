@@ -1,3 +1,7 @@
+function aws-account() {
+  cut -d "-" -f 1 <<<$AWS_PROFILE
+}
+
 function ecs-exec() {
   service=$1
   shift
@@ -53,6 +57,18 @@ function ecr-push() {
   docker tag $1 ${ECR_REPO}/$2
   docker push ${ECR_REPO}/$2
   docker image rm ${ECR_REPO}/$2
+}
+
+function tflinkvars() {
+  ln -s $NULIB_ROOT/tfvars/$1/*.tfvars .
+}
+
+function tfplan() {
+  terraform plan -var-file $(aws-account).tfvars -out $(aws-account).plan
+}
+
+function tfapply() {
+  terraform apply $(aws-account).plan
 }
 
 function tfselect() {

@@ -224,7 +224,7 @@ class DevStack
     return false unless result.status[0] == '200'
     return false unless result.meta['content-type'] == 'application/json'
     content = JSON.parse(result.read)
-    return false unless content.dig('features', 'initScripts') == 'initialized'
+    return false unless content['features'].length > 0 and content['features'].values.all? { |v| v == 'initialized' }
     true
   rescue
     false
