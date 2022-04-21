@@ -14,6 +14,7 @@ class DevStack
   attr_accessor :context
 
   INTERNAL_COMPOSE = Gem::Dependency.new('', '>= 2.0.0-beta.4')
+  LOCALSTACK_TIMEOUT = 30
 
   def initialize(argv)
     ENV['COMPOSE_PROJECT_NAME'] ||= 'devstack'
@@ -232,10 +233,12 @@ class DevStack
     end
 
     content = JSON.parse(result.read)
-    unless content['features'].length > 0 and content['features'].values.all? { |v| v == 'initialized' }
-      warn "Not Ready (Features: #{content['features'].to_json})"
+    unless content['version'].to_s =~ /^[0-9.]+$/
+      warn "Not Ready (Version not found)"
       return false
     end
+
+    warn "Localstack v#{content['version']} ready"
     true
   rescue StandardError => err
     warn "Not Ready (Error: #{err.message})"
@@ -246,8 +249,19 @@ class DevStack
     return if @context.applications.empty?
     port = @context.test_mode ? 4568 : 4566
     warn "Waiting for localstack to become ready"
-    while !localstack_ready(port)
+
+    retries = 0
+    while !localstack_ready(port) and retries < LOCALSTACK_TIMEOUT
+      retries += 1
       sleep 1
+    end
+
+    if retries > LOCALSTACK_TIMEOUT
+      warn "localstack failed to become ready in #{LOCALSTACK_TIMEOUT} seconds"
+      warn "Dumping localstack logs and exiting"
+      cmd = docker_compose_array(['-f', compose_file, 'logs', 'localstack'])
+      Kernel.system(*cmd)
+      raise TimeoutError
     end
 
     warn "Provisioning localstack for #{@context.applications.join(', ')}"
