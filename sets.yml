@@ -34,3 +34,5 @@ meadow:
     - localstack
   resources:
     - digester
+    - environment_config
+    - variables

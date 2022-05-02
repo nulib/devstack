@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'erb'
 require 'fileutils'
 require 'json'
 require 'pathname'
@@ -280,12 +281,19 @@ class DevStack
       FileUtils.cp(root.join("extras/localstack/terraform/#{manifest}.tf"), tf_dir)
     end
 
+    %w(dev test).each do |environment|
+      File.open(File.join(tf_dir, "#{environment}.tfvars"), 'w') do |var_file|
+        template = ERB.new(File.read("extras/localstack/terraform/#{environment}.tfvars"))
+        var_file.write(template.result(binding))
+      end
+    end
+
     Dir.chdir(tf_dir) do
       workspace = @context.test_mode ? 'test' : 'dev'
       action = %x(terraform workspace list) =~ /\b#{workspace}\b/ ? 'select' : 'new'
       system("terraform init -upgrade")
       system("terraform workspace #{action} #{workspace}")
-      system("terraform apply -auto-approve -var localstack_endpoint=https://localhost.localstack.cloud:#{port}")
+      system("terraform apply -auto-approve -var-file #{workspace}.tfvars -var localstack_endpoint=https://localhost.localstack.cloud:#{port}")
     end
   end
 
