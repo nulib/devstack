@@ -19,7 +19,7 @@ arch:
 dc: &dc
   services:
     - elasticproxy
-    - elasticsearch
+    - opensearch
     - iiif
     - kibana
     - localstack
@@ -28,7 +28,7 @@ fen: *dc
 meadow:
   services:
     - db
-    - elasticsearch
+    - opensearch
     - iiif
     - ldap
     - localstack
