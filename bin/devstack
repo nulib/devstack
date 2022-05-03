@@ -283,7 +283,7 @@ class DevStack
 
     %w(dev test).each do |environment|
       File.open(File.join(tf_dir, "#{environment}.tfvars"), 'w') do |var_file|
-        template = ERB.new(File.read("extras/localstack/terraform/#{environment}.tfvars"))
+        template = ERB.new(File.read(root.join("extras/localstack/terraform/#{environment}.tfvars")))
         var_file.write(template.result(binding))
       end
     end
