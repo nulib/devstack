@@ -12,19 +12,16 @@ config_secrets = {
     username    = "<%= ENV['GEONAMES_USERNAME'] %>"
   }
 
-  nusso = {
-    api_key     = "<%= ENV['NUSSO_API_KEY'] %>"
-    base_url    = "https://northwestern-test.apigee.net/agentless-websso/"
-  }
-
-}
-
-user_secrets = {
   iiif = {
     base_url     = "https://devbox.library.northwestern.edu:8183/iiif/2/"
     manifest_url = "https://dev-pyramids.s3.localhost.localstack.cloud:4566/public/"
   }
   
+  nusso = {
+    api_key     = "<%= ENV['NUSSO_API_KEY'] %>"
+    base_url    = "https://northwestern-test.apigee.net/agentless-websso/"
+  }
+
   streaming = {
     base_url    = "https://dev-streaming.s3.localhost.localstack.cloud:4566/"
   }

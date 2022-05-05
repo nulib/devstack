@@ -1,76 +1,45 @@
 locals {
   project       = "meadow"
   port_offset   = terraform.workspace == "test" ? 2 : 1
-}
 
-resource "aws_secretsmanager_secret" "db_secrets" {
-  name    = "${local.project}/db"
-  description = "Database configuration secrets"
-}
+  computed_secrets = {
+    db   = {
+      host        = "localhost"
+      port        = 5432 + local.port_offset
+      user        = "docker"
+      password    = "d0ck3r"
+    }
 
-resource "aws_secretsmanager_secret" "index_secrets" {
-  name    = "${local.project}/index"
-  description = "OpenSearch index secrets"
-}
+    index = {
+      index_endpoint    = "http://localhost:${9200 + local.port_offset}"
+      kibana_endpoint   = "http://localhost:${5601 + local.port_offset}"
+    }
+    ldap = {
+      host       = "localhost"
+      base       = "DC=library,DC=northwestern,DC=edu"
+      port       = 389 + local.port_offset
+      user_dn    = "cn=Administrator,cn=Users,dc=library,dc=northwestern,dc=edu"
+      password   = "d0ck3rAdm1n!"
+      ssl        = "false"
+    }
+  }
 
-resource "aws_secretsmanager_secret" "ldap_secrets" {
-  name    = "${local.project}/ldap"
-  description = "LDAP server secrets"
+  config_secrets = merge(var.config_secrets, local.computed_secrets)
 }
 
 resource "aws_secretsmanager_secret" "config_secrets" {
-  name    = "${local.project}/config"
-  description = "Miscellaneous configuration secrets"
-}
-
-resource "aws_secretsmanager_secret" "user_secrets" {
-  name    = "${local.project}/config/${terraform.workspace}"
-  description = "User-specific configuration secrets"
+  name    = "config/meadow"
+  description = "Meadow configuration secrets"
 }
 
 resource "aws_secretsmanager_secret" "ssl_certificate" {
-  name = "${local.project}/ssl"
+  name = "config/wildcard_ssl"
   description = "Wildcard SSL certificate and private key"
-}
-
-resource "aws_secretsmanager_secret_version" "db_secrets" {
-  secret_id = aws_secretsmanager_secret.db_secrets.id
-  secret_string = jsonencode({
-    host        = "localhost"
-    port        = 5432 + local.port_offset
-    user        = "docker"
-    password    = "d0ck3r"
-  })
-}
-
-resource "aws_secretsmanager_secret_version" "index_secrets" {
-  secret_id = aws_secretsmanager_secret.index_secrets.id
-  secret_string = jsonencode({
-    index_endpoint    = "http://localhost:${9200 + local.port_offset}"
-    kibana_endpoint   = "http://localhost:${5601 + local.port_offset}"
-  })
-}
-
-resource "aws_secretsmanager_secret_version" "ldap_secrets" {
-  secret_id = aws_secretsmanager_secret.ldap_secrets.id
-  secret_string = jsonencode({
-    host       = "localhost"
-    base       = "DC=library,DC=northwestern,DC=edu"
-    port       = 389 + local.port_offset
-    user_dn    = "cn=Administrator,cn=Users,dc=library,dc=northwestern,dc=edu"
-    password   = "d0ck3rAdm1n!"
-    ssl        = "false"
-  })
 }
 
 resource "aws_secretsmanager_secret_version" "config_secrets" {
   secret_id = aws_secretsmanager_secret.config_secrets.id
-  secret_string = jsonencode(var.config_secrets)
-}
-
-resource "aws_secretsmanager_secret_version" "user_secrets" {
-  secret_id = aws_secretsmanager_secret.user_secrets.id
-  secret_string = jsonencode(var.user_secrets)
+  secret_string = jsonencode(local.config_secrets)
 }
 
 resource "aws_secretsmanager_secret_version" "ssl_certificate" {
