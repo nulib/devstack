@@ -17,8 +17,3 @@ variable "test_mode" {
   type    = bool
   default = false
 }
-
-variable "user_secrets" {
-  type    = map(map(string))
-  default = {}
-}

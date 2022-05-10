@@ -9,16 +9,13 @@ config_secrets = {
     username    = "<%= ENV['GEONAMES_USERNAME'] %>"
   }
 
+  iiif = {
+    manifest_url = "http://test-pyramids.s3.localhost.localstack.cloud:4568/public/"
+  }
+
   nusso = {
     api_key     = "test-sso-key"
     base_url    = "https://northwestern-dev.apigee.net/agentless-websso/"
-  }
-
-}
-
-user_secrets = {
-  iiif = {
-    manifest_url = "http://test-pyramids.s3.localhost.localstack.cloud:4568/public/"
   }
 
   streaming = {
