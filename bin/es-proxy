@@ -1,74 +1,79 @@
-#!/usr/bin/env ruby
+#!/bin/bash
 
-require 'bundler/inline'
+instance() {
+  docker ps -qf "name=es-proxy-$1"
+}
 
-gemfile do
-  source 'https://rubygems.org'
-
-  gem 'aws-sdk-core'
-  gem 'aws-sdk-elasticsearchservice'
-  gem 'aws-sdk-ssm'
-end
-
-require 'aws-sdk-core'
-require 'aws-sdk-elasticsearchservice'
-require 'aws-sdk-ssm'
-
-def main
-  ENV['AWS_PROFILE'] ||= ENV['AWS_DEFAULT_PROFILE']
-  credentials = shared_credentials()
-  endpoint = elasticsearch_endpoint(credentials)
-  region = `aws configure get region --profile #{credentials.profile_name}`.chomp
-  cmdline = [
-    'docker',
-    'run',
-    '-v',
-    "#{ENV['HOME']}/.aws:/.aws",
-    '-e',
-    "AWS_PROFILE=#{ENV['AWS_PROFILE']}",
-    '-e',
-    "AWS_REGION=#{region}",
-    '-ti',
-    '-p',
-    '9200:8080',
-    'cllunsford/aws-signing-proxy',
-    '-target',
-    endpoint
-  ]
-  warn "Proxying http://localhost:9200/ to #{endpoint}"
-  warn "Kibana available on http://localhost:9200/_plugin/kibana/"
-  Kernel.system(*cmdline, out: File::NULL)
-end
-
-def elasticsearch_endpoint(credentials)
-  es = Aws::ElasticsearchService::Client.new(credentials: credentials)
-  domain_name = es.list_domain_names.domain_names.find { |domain| domain.domain_name =~ /common-index/ }.domain_name
-  endpoint = es.describe_elasticsearch_domain(domain_name: domain_name).domain_status.endpoint
-  "https://#{endpoint}"
-rescue Aws::Errors::ServiceError => err
-  if err.class.name =~ /::ExpiredTokenException$/
-    aws_session_error(credentials, 'AWS session token for profile %s is expired.')
+start() {
+  cid=$(instance $AWS_PROFILE)
+  if [[ -n "$cid" ]]; then
+    echo "es-proxy already running"
   else
-    raise err
-  end
-end
+    ES_CONFIG=$(aws --profile $AWS_PROFILE secretsmanager get-secret-value --secret-id "config/meadow" --query "SecretString" --output text | jq '.search')
+    AWS_ACCESS_KEY_ID=$(jq -r '.access_key_id' <<< $ES_CONFIG)
+    AWS_SECRET_ACCESS_KEY=$(jq -r '.secret_access_key' <<< $ES_CONFIG)
+    ENDPOINT=$(jq -r '.cluster_endpoint' <<< $ES_CONFIG)
 
-def shared_credentials
-  Aws::SharedCredentials.new.tap do |credentials|
-    if credentials.credentials.nil?
-      aws_session_error(credentials, 'AWS Credentials not found for profile %s.') 
-    end
-  end
-end
+    output=$(docker run --rm \
+      --name es-proxy-$AWS_PROFILE \
+      -d \
+      -e AWS_REGION=$AWS_REGION \
+      -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+      -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+      -p $PORT:8080 cllunsford/aws-signing-proxy -target $ENDPOINT > /dev/null)
 
-def aws_session_error(credentials, error_string)
-  profile = credentials.profile_name
-  $stderr.puts <<~__EOC__
-  #{error_string % profile} Please run the following command and try again:
+    if [[ $? == 0 ]]; then
+      echo "Proxying http://localhost:$PORT/ to $AWS_PROFILE cluster in $AWS_REGION"
+      echo "Kibana available on http://localhost:$PORT/_plugin/kibana/"
+    else
+      echo $output
+    fi
+  fi
+}
 
-      aws-adfs login --adfs-host=ads-fed.northwestern.edu --profile=#{profile}
-  __EOC__
-  exit(128)
-end
+stop() {
+  cid=$(instance $AWS_PROFILE)
+  if [[ -n "$cid" ]]; then
+    docker stop $cid > /dev/null
+    echo "Proxy to $AWS_PROFILE cluster stopped"
+  else
+    echo "Proxy not running for $AWS_PROFILE cluster"
+  fi
+}
 
-main()
+usage() {
+  cat <<__EOC__
+Usage:
+  $(basename $0) start [profile] [port]
+  $(basename $0) stop [profile]
+
+Arguments:
+  profile    AWS profile to use (default: \$AWS_PROFILE)
+  port       Port to run proxy on (default: 9200)
+__EOC__
+}
+
+CMD=$1
+AWS_PROFILE=${2:-$AWS_PROFILE}
+PORT=${3:-9200}
+AWS_REGION=${AWS_REGION:-us-east-1}
+
+if [[ -z $AWS_PROFILE ]]; then
+  usage
+  echo ""
+  echo "AWS_PROFILE not set. Exiting."
+  exit 1
+fi
+
+case $CMD in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  *)
+    usage
+    ;;
+esac
+
