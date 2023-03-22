@@ -4,16 +4,17 @@ locals {
 
   computed_secrets = {
     db   = {
-      host        = "localhost"
-      port        = 5432 + local.port_offset
-      user        = "docker"
-      password    = "d0ck3r"
+      host        = module.rds.db_instance_address
+      port        = module.rds.db_instance_port
+      user        = module.rds.db_instance_username
+      password    = module.rds.db_instance_password
     }
 
-    index = {
-      index_endpoint    = "http://localhost:${9200 + local.port_offset}"
-      kibana_endpoint   = "http://localhost:${5601 + local.port_offset}"
+    search = {
+      cluster_endpoint    = "http://${aws_opensearch_domain.elasticsearch.endpoint}"
+      kibana_endpoint   = "http://${aws_opensearch_domain.elasticsearch.kibana_endpoint}"
     }
+
     ldap = {
       host       = "localhost"
       base       = "DC=library,DC=northwestern,DC=edu"
