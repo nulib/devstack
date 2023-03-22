@@ -1,0 +1,81 @@
+---
+version: '3.4'
+services:
+  db:
+    image: postgres:10-alpine
+    restart: unless-stopped
+    read_only: true
+    volumes:
+    - type: volume
+      target: /data
+    - type: volume
+      target: /tmp
+    - type: volume
+      target: /var/log
+    - type: volume
+      target: /var/run
+    environment:
+    - PGDATA=/data
+    - POSTGRES_USER=docker
+    - POSTGRES_PASSWORD=d0ck3r
+    ports:
+    - 5434:5432
+    command: postgres -c max_connections=300
+    healthcheck:
+      test: |
+        CMD echo 'SELECT 1' | \
+          PGPASSWORD=d0ck3r psql --host 127.0.0.1 --username docker \
+          --dbname docker --quiet --no-align --tuples-only
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  ldap:
+    image: ghcr.io/nulib/ldap-alpine
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        target: /var/lib/samba
+    ports:
+      - 389:389
+      - 636:636
+    environment:
+      DOMAIN: library.northwestern.edu
+      DOMAINPASS: d0ck3rAdm1n!
+      INSECURELDAP: "true"
+      NOCOMPLEXITY: "true"
+    healthcheck:
+      test:
+      - CMD
+      - echo
+      - ""
+      - "|"
+      - nc
+      - localhost
+      - "389"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  localstack:
+    image: localstack/localstack-pro
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        target: /data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 443:443
+      - 4566:4566
+      - 4510-4559:4510-4559
+      - 4571:4571
+      - 12121:12121
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      GATEWAY_LISTEN: 0.0.0.0:443;0.0.0.0:4566
+      LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY:-}
+    healthcheck:
+      test: 
+        - CMD
+        - curl -s http://localhost:4566/health | grep '"version":'
+      interval: 30s
+      timeout: 30s
+      retries: 5

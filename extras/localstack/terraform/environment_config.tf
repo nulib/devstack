@@ -1,6 +1,5 @@
 locals {
   project       = "meadow"
-  port_offset   = terraform.workspace == "test" ? 2 : 1
 
   computed_secrets = {
     db   = {
@@ -18,7 +17,7 @@ locals {
     ldap = {
       host       = "localhost"
       base       = "DC=library,DC=northwestern,DC=edu"
-      port       = 389 + local.port_offset
+      port       = 389
       user_dn    = "cn=Administrator,cn=Users,dc=library,dc=northwestern,dc=edu"
       password   = "d0ck3rAdm1n!"
       ssl        = "false"
