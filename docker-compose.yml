@@ -220,7 +220,7 @@ services:
       timeout: 5s
       retries: 3
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack-pro
     restart: unless-stopped
     volumes:
       - localstack:/data
@@ -246,6 +246,7 @@ services:
       LAMBDA_EXECUTOR: docker-reuse
       LOCALSTACK_API_KEY: ${LOCALSTACK_API_KEY:-}
       LS_LOG: ${LS_LOG:-}
+      PERSISTENCE: 1
     healthcheck:
       test: 
         - CMD
