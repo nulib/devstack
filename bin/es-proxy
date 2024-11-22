@@ -5,25 +5,31 @@ instance() {
 }
 
 start() {
-  cid=$(instance $AWS_PROFILE)
+  SHORT_PROFILE=$(cut -d "-" -f 1 <<< $AWS_PROFILE)
+  cid=$(instance $SHORT_PROFILE)
   if [[ -n "$cid" ]]; then
-    echo "es-proxy already running"
+    echo "es-proxy already running for $SHORT_PROFILE cluster"
   else
-    ES_CONFIG=$(aws --profile $AWS_PROFILE secretsmanager get-secret-value --secret-id "config/meadow" --query "SecretString" --output text | jq '.search')
-    AWS_ACCESS_KEY_ID=$(jq -r '.access_key_id' <<< $ES_CONFIG)
-    AWS_SECRET_ACCESS_KEY=$(jq -r '.secret_access_key' <<< $ES_CONFIG)
-    ENDPOINT=$(jq -r '.cluster_endpoint' <<< $ES_CONFIG)
+    aws --profile $AWS_PROFILE sts get-caller-identity --no-cli-pager > /dev/null 2>&1 || aws --profile $AWS_PROFILE sso login
+    ES_CONFIG=$(aws --profile $AWS_PROFILE secretsmanager get-secret-value --secret-id "${SHORT_PROFILE}/infrastructure/index" --query "SecretString" --output text)
+    ENDPOINT=$(jq -r '.endpoint' <<< $ES_CONFIG)
+
+    CREDENTIALS=$(aws configure export-credentials --format process)
+    AWS_ACCESS_KEY_ID=$(jq -r '.AccessKeyId' <<< $CREDENTIALS)
+    AWS_SECRET_ACCESS_KEY=$(jq -r '.SecretAccessKey' <<< $CREDENTIALS)
+    AWS_SESSION_TOKEN=$(jq -r '.SessionToken' <<< $CREDENTIALS)
 
     output=$(docker run --rm \
-      --name es-proxy-$AWS_PROFILE \
+      --name es-proxy-$SHORT_PROFILE \
       -d \
       -e AWS_REGION=$AWS_REGION \
       -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
       -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+      -e AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN \
       -p $PORT:8080 cllunsford/aws-signing-proxy -target $ENDPOINT > /dev/null)
 
     if [[ $? == 0 ]]; then
-      echo "Proxying http://localhost:$PORT/ to $AWS_PROFILE cluster in $AWS_REGION"
+      echo "Proxying http://localhost:$PORT/ to $SHORT_PROFILE cluster in $AWS_REGION"
       echo "Kibana available on http://localhost:$PORT/_plugin/kibana/"
     else
       echo $output
@@ -32,12 +38,13 @@ start() {
 }
 
 stop() {
-  cid=$(instance $AWS_PROFILE)
+  SHORT_PROFILE=$(cut -d "-" -f 1 <<< $AWS_PROFILE)
+  cid=$(instance $SHORT_PROFILE)
   if [[ -n "$cid" ]]; then
     docker stop $cid > /dev/null
-    echo "Proxy to $AWS_PROFILE cluster stopped"
+    echo "Proxy to $SHORT_PROFILE cluster stopped"
   else
-    echo "Proxy not running for $AWS_PROFILE cluster"
+    echo "Proxy not running for $SHORT_PROFILE cluster"
   fi
 }
 
